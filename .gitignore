@@ -1,0 +1,23 @@
+# 공통
+__pycache__/
+*.pyc
+*.log
+.env
+**/.env
+*.db
+
+# 가상환경
+.venv/
+env/
+
+# IDE/에디터
+.vscode/
+.idea/
+
+# Node
+node_modules/
+dist/
+build/
+
+# 기타
+.DS_Store
