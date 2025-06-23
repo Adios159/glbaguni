@@ -21,3 +21,9 @@ build/
 
 # 기타
 .DS_Store
+
+# 프론트엔드 관련
+node_modules/
+dist/
+.vite/
+*.env.local

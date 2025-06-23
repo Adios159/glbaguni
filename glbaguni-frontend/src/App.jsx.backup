@@ -1,0 +1,83 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useTheme } from './hooks/useTheme';
+import Navbar from './components/Navbar';
+import ThemeToggle from './components/ThemeToggle';
+import HomePage from './pages/HomePage';
+import SummarizePage from './pages/SummarizePage';
+import HistoryPage from './pages/HistoryPage';
+import RecommendationPage from './pages/RecommendationPage';
+import ContactPage from './pages/ContactPage';
+
+function App() {
+  const { theme, toggleTheme } = useTheme();
+
+  return (
+    <Router>
+      <div className={`min-h-screen ${theme === 'dark' ? 'dark' : ''}`}>
+        <div className="bg-white dark:bg-gray-900 min-h-screen transition-colors duration-200">
+          {/* Fixed Navbar */}
+          <Navbar />
+          
+          {/* Theme Toggle - Fixed position */}
+          <div className="fixed top-4 right-4 z-50">
+            <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+          </div>
+
+          {/* Main Content */}
+          <main>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/summarize" element={<SummarizePage />} />
+              <Route path="/history" element={<HistoryPage />} />
+              <Route path="/recommendations" element={<RecommendationPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+            </Routes>
+          </main>
+          
+          {/* Footer */}
+          <footer className="bg-gray-800 dark:bg-gray-900 text-white py-8 mt-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">📰 글바구니</h3>
+                  <p className="text-gray-300 text-sm">
+                    AI 기반 RSS 요약 서비스로 복잡한 뉴스를 간단하게 정리해드립니다.
+                  </p>
+                </div>
+                
+                <div>
+                  <h4 className="text-md font-semibold mb-4">빠른 링크</h4>
+                  <ul className="text-sm space-y-2">
+                    <li><a href="/" className="text-gray-300 hover:text-white">홈</a></li>
+                    <li><a href="/summarize" className="text-gray-300 hover:text-white">요약하기</a></li>
+                    <li><a href="/history" className="text-gray-300 hover:text-white">내 히스토리</a></li>
+                    <li><a href="/recommendations" className="text-gray-300 hover:text-white">추천 기사</a></li>
+                    <li><a href="/contact" className="text-gray-300 hover:text-white">문의하기</a></li>
+                  </ul>
+                </div>
+                
+                <div>
+                  <h4 className="text-md font-semibold mb-4">지원</h4>
+                  <ul className="text-sm space-y-2">
+                    <li><span className="text-gray-300">📧 support@glbaguni.com</span></li>
+                    <li><a href="https://github.com/glbaguni" className="text-gray-300 hover:text-white">🔗 GitHub</a></li>
+                    <li><span className="text-gray-300">⏰ 응답시간: 1-2일</span></li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="border-t border-gray-700 mt-8 pt-8 text-center">
+                <p className="text-gray-400 text-sm">
+                  © 2024 글바구니. All rights reserved. Made with ❤️ for better news consumption.
+                </p>
+              </div>
+            </div>
+          </footer>
+        </div>
+      </div>
+    </Router>
+  );
+}
+
+export default App;
