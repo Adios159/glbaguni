@@ -6,14 +6,15 @@ API 응답에 대한 Pydantic 모델들
 """
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Union
+from typing import Any, Dict, List, Optional, Union
+
 from pydantic import BaseModel, Field
 
 
 # 기본 응답 모델
 class BaseResponse(BaseModel):
     """기본 응답 모델"""
-    
+
     success: bool = Field(description="요청 성공 여부")
     message: str = Field(description="응답 메시지")
     timestamp: datetime = Field(default_factory=datetime.now, description="응답 시간")
@@ -22,10 +23,10 @@ class BaseResponse(BaseModel):
 
 class ErrorResponse(BaseResponse):
     """오류 응답 모델"""
-    
+
     success: bool = Field(default=False, description="요청 성공 여부")
     error: Dict[str, Any] = Field(description="오류 정보")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -33,10 +34,10 @@ class ErrorResponse(BaseResponse):
                 "message": "요청 처리 중 오류가 발생했습니다",
                 "error": {
                     "code": "VALIDATION_ERROR",
-                    "details": "입력값이 올바르지 않습니다"
+                    "details": "입력값이 올바르지 않습니다",
                 },
                 "timestamp": "2024-01-01T00:00:00",
-                "request_id": "abc123"
+                "request_id": "abc123",
             }
         }
 
@@ -44,7 +45,7 @@ class ErrorResponse(BaseResponse):
 # 공통 데이터 모델들
 class Article(BaseModel):
     """뉴스 기사 모델"""
-    
+
     title: str = Field(description="기사 제목")
     content: Optional[str] = Field(default=None, description="기사 내용")
     summary: Optional[str] = Field(default=None, description="기사 요약")
@@ -54,7 +55,7 @@ class Article(BaseModel):
     category: Optional[str] = Field(default=None, description="카테고리")
     keywords: Optional[List[str]] = Field(default=None, description="키워드 목록")
     language: str = Field(default="ko", description="언어")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -66,23 +67,25 @@ class Article(BaseModel):
                 "published_at": "2024-01-01T09:00:00",
                 "category": "technology",
                 "keywords": ["AI", "인공지능", "기술"],
-                "language": "ko"
+                "language": "ko",
             }
         }
 
 
 class Summary(BaseModel):
     """요약 결과 모델"""
-    
+
     original_length: int = Field(description="원본 텍스트 길이")
     summary_length: int = Field(description="요약 텍스트 길이")
     summary_text: str = Field(description="요약 내용")
     key_points: Optional[List[str]] = Field(default=None, description="주요 포인트")
     keywords: Optional[List[str]] = Field(default=None, description="핵심 키워드")
-    confidence_score: Optional[float] = Field(default=None, description="요약 신뢰도 점수")
+    confidence_score: Optional[float] = Field(
+        default=None, description="요약 신뢰도 점수"
+    )
     language: str = Field(default="ko", description="요약 언어")
     style: str = Field(default="compact", description="요약 스타일")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -93,23 +96,25 @@ class Summary(BaseModel):
                 "keywords": ["AI", "혁신", "기술"],
                 "confidence_score": 0.85,
                 "language": "ko",
-                "style": "compact"
+                "style": "compact",
             }
         }
 
 
 class RSSSource(BaseModel):
     """RSS 소스 모델"""
-    
+
     id: Optional[int] = Field(default=None, description="RSS 소스 ID")
     name: str = Field(description="RSS 소스 이름")
     url: str = Field(description="RSS URL")
     category: str = Field(default="general", description="카테고리")
     language: str = Field(default="ko", description="언어")
     is_active: bool = Field(default=True, description="활성화 상태")
-    last_updated: Optional[datetime] = Field(default=None, description="마지막 업데이트 시간")
+    last_updated: Optional[datetime] = Field(
+        default=None, description="마지막 업데이트 시간"
+    )
     article_count: Optional[int] = Field(default=0, description="수집된 기사 수")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -120,7 +125,7 @@ class RSSSource(BaseModel):
                 "language": "ko",
                 "is_active": True,
                 "last_updated": "2024-01-01T09:00:00",
-                "article_count": 25
+                "article_count": 25,
             }
         }
 
@@ -128,10 +133,10 @@ class RSSSource(BaseModel):
 # API 응답 모델들
 class SummarizeResponse(BaseResponse):
     """뉴스 요약 응답 모델"""
-    
+
     success: bool = Field(default=True)
     data: Dict[str, Any] = Field(description="요약 결과 데이터")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -149,14 +154,14 @@ class SummarizeResponse(BaseResponse):
                         "keywords": ["정치", "경제", "사회"],
                         "confidence_score": 0.88,
                         "language": "ko",
-                        "style": "compact"
+                        "style": "compact",
                     },
                     "articles": [
                         {
                             "title": "뉴스 제목",
                             "url": "https://example.com/news/1",
                             "source": "News Source",
-                            "summary": "기사 요약..."
+                            "summary": "기사 요약...",
                         }
                     ],
                     "sources": [
@@ -164,24 +169,24 @@ class SummarizeResponse(BaseResponse):
                             "name": "BBC News",
                             "url": "https://feeds.bbci.co.uk/news/rss.xml",
                             "articles_count": 8,
-                            "success_rate": 0.8
+                            "success_rate": 0.8,
                         }
                     ],
                     "processing_time": 45.2,
-                    "generated_at": "2024-01-01T09:00:00"
+                    "generated_at": "2024-01-01T09:00:00",
                 },
                 "timestamp": "2024-01-01T09:00:00",
-                "request_id": "req_123"
+                "request_id": "req_123",
             }
         }
 
 
 class TextSummarizeResponse(BaseResponse):
     """텍스트 요약 응답 모델"""
-    
+
     success: bool = Field(default=True)
     data: Summary = Field(description="요약 결과")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -195,20 +200,20 @@ class TextSummarizeResponse(BaseResponse):
                     "keywords": ["키워드1", "키워드2"],
                     "confidence_score": 0.92,
                     "language": "ko",
-                    "style": "compact"
+                    "style": "compact",
                 },
                 "timestamp": "2024-01-01T09:00:00",
-                "request_id": "req_456"
+                "request_id": "req_456",
             }
         }
 
 
 class NewsSearchResponse(BaseResponse):
     """뉴스 검색 응답 모델"""
-    
+
     success: bool = Field(default=True)
     data: Dict[str, Any] = Field(description="검색 결과 데이터")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -225,28 +230,28 @@ class NewsSearchResponse(BaseResponse):
                             "url": "https://example.com/ai-future",
                             "source": "Tech Today",
                             "published_at": "2024-01-01T08:00:00",
-                            "relevance_score": 0.95
+                            "relevance_score": 0.95,
                         }
                     ],
                     "search_time": 2.1,
                     "filters": {
                         "date_from": "2024-01-01",
                         "date_to": "2024-01-02",
-                        "sources": ["Tech Today", "AI News"]
-                    }
+                        "sources": ["Tech Today", "AI News"],
+                    },
                 },
                 "timestamp": "2024-01-01T09:00:00",
-                "request_id": "req_789"
+                "request_id": "req_789",
             }
         }
 
 
 class HistoryResponse(BaseResponse):
     """히스토리 조회 응답 모델"""
-    
+
     success: bool = Field(default=True)
     data: Dict[str, Any] = Field(description="히스토리 데이터")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -265,22 +270,22 @@ class HistoryResponse(BaseResponse):
                             "articles_count": 12,
                             "sources": ["BBC", "Reuters"],
                             "created_at": "2024-01-01T09:00:00",
-                            "processing_time": 35.2
+                            "processing_time": 35.2,
                         }
-                    ]
+                    ],
                 },
                 "timestamp": "2024-01-01T09:00:00",
-                "request_id": "req_hist"
+                "request_id": "req_hist",
             }
         }
 
 
 class RecommendationResponse(BaseResponse):
     """추천 응답 모델"""
-    
+
     success: bool = Field(default=True)
     data: Dict[str, Any] = Field(description="추천 결과 데이터")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -296,23 +301,23 @@ class RecommendationResponse(BaseResponse):
                             "source": "Tech News",
                             "relevance_score": 0.92,
                             "reason": "사용자의 AI 관심사와 높은 연관성",
-                            "published_at": "2024-01-01T08:30:00"
+                            "published_at": "2024-01-01T08:30:00",
                         }
                     ],
-                    "generated_at": "2024-01-01T09:00:00"
+                    "generated_at": "2024-01-01T09:00:00",
                 },
                 "timestamp": "2024-01-01T09:00:00",
-                "request_id": "req_recommend"
+                "request_id": "req_recommend",
             }
         }
 
 
 class HealthCheckResponse(BaseResponse):
     """헬스 체크 응답 모델"""
-    
+
     success: bool = Field(default=True)
     data: Dict[str, Any] = Field(description="시스템 상태 정보")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -326,31 +331,31 @@ class HealthCheckResponse(BaseResponse):
                     "services": {
                         "database": {"status": "connected", "response_time": 0.05},
                         "openai": {"status": "connected", "response_time": 0.8},
-                        "rss_feeds": {"status": "operational", "active_feeds": 25}
+                        "rss_feeds": {"status": "operational", "active_feeds": 25},
                     },
                     "resources": {
                         "cpu_usage": 15.2,
                         "memory_usage": 512.7,
-                        "disk_usage": 45.6
+                        "disk_usage": 45.6,
                     },
                     "statistics": {
                         "total_requests": 15420,
                         "successful_requests": 14856,
-                        "error_rate": 0.037
-                    }
+                        "error_rate": 0.037,
+                    },
                 },
                 "timestamp": "2024-01-01T09:00:00",
-                "request_id": "health_check"
+                "request_id": "health_check",
             }
         }
 
 
 class DebugResponse(BaseResponse):
     """디버그 정보 응답 모델"""
-    
+
     success: bool = Field(default=True)
     data: Dict[str, Any] = Field(description="디버그 정보")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -360,36 +365,36 @@ class DebugResponse(BaseResponse):
                     "system_info": {
                         "python_version": "3.9.7",
                         "platform": "Linux",
-                        "hostname": "server-001"
+                        "hostname": "server-001",
                     },
                     "environment_variables": {
                         "ENVIRONMENT": "development",
                         "LOG_LEVEL": "DEBUG",
-                        "OPENAI_MODEL": "gpt-3.5-turbo"
+                        "OPENAI_MODEL": "gpt-3.5-turbo",
                     },
                     "recent_logs": [
                         "2024-01-01 09:00:00 | INFO | Request processed successfully",
-                        "2024-01-01 08:59:55 | DEBUG | Starting RSS feed collection"
+                        "2024-01-01 08:59:55 | DEBUG | Starting RSS feed collection",
                     ],
                     "active_connections": 5,
                     "cache_status": {
                         "total_entries": 120,
                         "hit_rate": 0.78,
-                        "memory_usage": "45MB"
-                    }
+                        "memory_usage": "45MB",
+                    },
                 },
                 "timestamp": "2024-01-01T09:00:00",
-                "request_id": "debug_info"
+                "request_id": "debug_info",
             }
         }
 
 
 class RSSManagementResponse(BaseResponse):
     """RSS 관리 응답 모델"""
-    
+
     success: bool = Field(default=True)
     data: Dict[str, Any] = Field(description="RSS 관리 결과")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -402,26 +407,26 @@ class RSSManagementResponse(BaseResponse):
                         "url": "https://example.com/rss",
                         "category": "technology",
                         "is_active": True,
-                        "created_at": "2024-01-01T09:00:00"
+                        "created_at": "2024-01-01T09:00:00",
                     },
                     "validation_result": {
                         "is_valid": True,
                         "article_count": 15,
-                        "last_updated": "2024-01-01T08:45:00"
-                    }
+                        "last_updated": "2024-01-01T08:45:00",
+                    },
                 },
                 "timestamp": "2024-01-01T09:00:00",
-                "request_id": "rss_add"
+                "request_id": "rss_add",
             }
         }
 
 
 class ConfigResponse(BaseResponse):
     """설정 응답 모델"""
-    
+
     success: bool = Field(default=True)
     data: Dict[str, Any] = Field(description="설정 정보")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -434,17 +439,13 @@ class ConfigResponse(BaseResponse):
                         "summary_max_length": 300,
                         "openai_model": "gpt-3.5-turbo",
                         "openai_temperature": 0.7,
-                        "log_level": "INFO"
+                        "log_level": "INFO",
                     },
-                    "allowed_models": [
-                        "gpt-3.5-turbo",
-                        "gpt-4",
-                        "gpt-4-turbo"
-                    ],
-                    "last_updated": "2024-01-01T08:00:00"
+                    "allowed_models": ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo"],
+                    "last_updated": "2024-01-01T08:00:00",
                 },
                 "timestamp": "2024-01-01T09:00:00",
-                "request_id": "config_get"
+                "request_id": "config_get",
             }
         }
 
@@ -452,29 +453,27 @@ class ConfigResponse(BaseResponse):
 # 페이지네이션을 위한 응답 모델
 class PaginatedResponse(BaseResponse):
     """페이지네이션이 적용된 응답 모델"""
-    
+
     success: bool = Field(default=True)
     data: Dict[str, Any] = Field(description="페이지네이션된 데이터")
     pagination: Dict[str, Any] = Field(description="페이지네이션 정보")
-    
+
     class Config:
         schema_extra = {
             "example": {
                 "success": True,
                 "message": "데이터 조회가 완료되었습니다",
-                "data": {
-                    "items": []
-                },
+                "data": {"items": []},
                 "pagination": {
                     "current_page": 1,
                     "total_pages": 10,
                     "total_items": 195,
                     "items_per_page": 20,
                     "has_next": True,
-                    "has_previous": False
+                    "has_previous": False,
                 },
                 "timestamp": "2024-01-01T09:00:00",
-                "request_id": "paginated"
+                "request_id": "paginated",
             }
         }
 
@@ -482,10 +481,10 @@ class PaginatedResponse(BaseResponse):
 # 통계 응답 모델
 class StatisticsResponse(BaseResponse):
     """통계 정보 응답 모델"""
-    
+
     success: bool = Field(default=True)
     data: Dict[str, Any] = Field(description="통계 데이터")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -500,14 +499,14 @@ class StatisticsResponse(BaseResponse):
                     "average_processing_time": 28.5,
                     "popular_sources": [
                         {"name": "BBC News", "requests": 245},
-                        {"name": "Reuters", "requests": 198}
+                        {"name": "Reuters", "requests": 198},
                     ],
                     "daily_stats": [
                         {"date": "2024-01-01", "requests": 45, "success_rate": 0.96}
-                    ]
+                    ],
                 },
                 "timestamp": "2024-01-01T09:00:00",
-                "request_id": "stats"
+                "request_id": "stats",
             }
         }
 
@@ -515,10 +514,10 @@ class StatisticsResponse(BaseResponse):
 # 업로드 응답 모델
 class UploadResponse(BaseResponse):
     """파일 업로드 응답 모델"""
-    
+
     success: bool = Field(default=True)
     data: Dict[str, Any] = Field(description="업로드 결과")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -531,10 +530,10 @@ class UploadResponse(BaseResponse):
                     "content_type": "text/csv",
                     "upload_time": "2024-01-01T09:00:00",
                     "processing_status": "completed",
-                    "processed_records": 150
+                    "processed_records": 150,
                 },
                 "timestamp": "2024-01-01T09:00:00",
-                "request_id": "upload"
+                "request_id": "upload",
             }
         }
 
@@ -542,7 +541,7 @@ class UploadResponse(BaseResponse):
 if __name__ == "__main__":
     # 테스트 코드
     print("응답 스키마 테스트:")
-    
+
     # SummarizeResponse 테스트
     try:
         response = SummarizeResponse(
@@ -553,23 +552,21 @@ if __name__ == "__main__":
                 "summary": {
                     "summary_text": "테스트 요약",
                     "original_length": 1000,
-                    "summary_length": 100
-                }
-            }
+                    "summary_length": 100,
+                },
+            },
         )
         print(f"✅ SummarizeResponse 생성 성공: {response.success}")
     except Exception as e:
         print(f"❌ SummarizeResponse 실패: {e}")
-    
+
     # Article 모델 테스트
     try:
         article = Article(
-            title="테스트 기사",
-            url="https://example.com/test",
-            source="Test Source"
+            title="테스트 기사", url="https://example.com/test", source="Test Source"
         )
         print(f"✅ Article 모델 생성 성공: {article.title}")
     except Exception as e:
         print(f"❌ Article 모델 실패: {e}")
-    
+
     print("\n응답 스키마 테스트 완료!")

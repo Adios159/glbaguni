@@ -1,11 +1,13 @@
 """
 Database configuration and session management for glbaguni app.
 """
+
+import logging
+import os
+
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-import os
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -19,21 +21,23 @@ if DATABASE_URL.startswith("sqlite"):
         DATABASE_URL,
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
-        echo=False  # Set to True for SQL debugging
+        echo=False,  # Set to True for SQL debugging
     )
-    
+
     # Enable foreign key support for SQLite
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
+
 else:
     # PostgreSQL/MySQL configuration
     engine = create_engine(DATABASE_URL, echo=False)
 
 # Create SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 # Database dependency for FastAPI
 def get_db():
@@ -46,6 +50,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 def create_tables():
     """
@@ -63,6 +68,7 @@ def create_tables():
         logger.error(f"Failed to create database tables: {e}")
         raise
 
+
 def init_database():
     """
     Initialize database with tables and basic data.
@@ -70,6 +76,7 @@ def init_database():
     logger.info("Initializing database...")
     create_tables()
     logger.info("Database initialization completed")
+
 
 # Utility functions for database operations
 def get_or_create_user_preferences(db, user_id: str, preferred_language: str = "en"):
@@ -80,17 +87,19 @@ def get_or_create_user_preferences(db, user_id: str, preferred_language: str = "
         from .models import UserPreferences
     except ImportError:
         from models import UserPreferences
-    
-    preferences = db.query(UserPreferences).filter(UserPreferences.user_id == user_id).first()
+
+    preferences = (
+        db.query(UserPreferences).filter(UserPreferences.user_id == user_id).first()
+    )
     if not preferences:
         preferences = UserPreferences(
             user_id=user_id,
             preferred_language=preferred_language,
             preferred_categories="[]",  # Empty JSON array
-            email_notifications=True
+            email_notifications=True,
         )
         db.add(preferences)
         db.commit()
         db.refresh(preferences)
-    
-    return preferences 
+
+    return preferences

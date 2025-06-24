@@ -5,23 +5,23 @@
 간결한 FastAPI 앱 정의 - 모든 기능 로직은 외부 모듈로 분리
 """
 
+import logging
 import os
 import sys
 import time
-import logging
 from contextlib import asynccontextmanager
-from dotenv import load_dotenv
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 
 # ===== 환경변수 최우선 로드 =====
 load_dotenv()
 
 # ===== 로깅 시스템 설정 =====
 try:
-    from .utils.logging_config import setup_comprehensive_logging
+    from backend.utils.logging_config import setup_comprehensive_logging
 except ImportError:
     from utils.logging_config import setup_comprehensive_logging
 
@@ -30,7 +30,7 @@ logger = setup_comprehensive_logging()
 
 # ===== 환경변수 검증 =====
 try:
-    from .utils.environment import validate_environment_comprehensive
+    from backend.utils.environment import validate_environment_comprehensive
 except ImportError:
     from utils.environment import validate_environment_comprehensive
 
@@ -39,41 +39,42 @@ if not validate_environment_comprehensive():
 
 # ===== 컴포넌트 관리 =====
 try:
-    from .utils.components import initialize_components, cleanup_components
+    from backend.utils.components import cleanup_components, initialize_components
 except ImportError:
-    from utils.components import initialize_components, cleanup_components
+    from utils.components import cleanup_components, initialize_components
 
 # ===== 미들웨어 및 예외 핸들러 =====
 try:
-    from .utils.middleware import logging_middleware
-    from .utils.exception_handlers import (
+    from backend.utils.exception_handlers import (
+        global_exception_handler,
         http_exception_handler,
         validation_exception_handler,
-        global_exception_handler
     )
+    from backend.utils.middleware import logging_middleware
 except ImportError:
-    from utils.middleware import logging_middleware
     from utils.exception_handlers import (
+        global_exception_handler,
         http_exception_handler,
         validation_exception_handler,
-        global_exception_handler
     )
+    from utils.middleware import logging_middleware
+
 
 # ===== 애플리케이션 라이프사이클 =====
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """애플리케이션 라이프사이클 관리"""
     startup_start = time.time()
-    
+
     try:
         logger.info("🔧 서버 초기화 시작...")
         await initialize_components()
-        
+
         startup_time = time.time() - startup_start
         logger.info(f"🎉 서버 초기화 완료! (소요시간: {startup_time:.2f}초)")
-        
+
         yield
-        
+
     except Exception as e:
         logger.error(f"❌ 서버 초기화 실패: {str(e)}")
         raise
@@ -82,6 +83,7 @@ async def lifespan(app: FastAPI):
         await cleanup_components()
         logger.info("✅ 서버 종료 완료")
 
+
 # ===== FastAPI 앱 생성 =====
 app = FastAPI(
     title="글바구니 (Glbaguni) - AI RSS Summarizer",
@@ -89,7 +91,7 @@ app = FastAPI(
     version="3.0.0",
     lifespan=lifespan,
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # ===== CORS 설정 =====
@@ -109,48 +111,51 @@ app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
+
 # ===== 라우터 등록 =====
 def register_routers():
     """모든 라우터를 앱에 등록"""
-    try:
-        # 핵심 라우터 (/, /health, /debug)
+    import importlib.util
+    
+    routers_to_register = [
+        ("core", "핵심 기능"),
+        ("summarize", "요약 서비스"),
+        ("health", "헬스체크"),
+        ("auth", "인증 및 보안"),
+        ("news", "뉴스 검색"),
+        ("fetch", "데이터 수집"),
+    ]
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    for router_name, description in routers_to_register:
         try:
-            from .routers.core import router as core_router
-            app.include_router(core_router)
-            logger.info("✅ Core 라우터 등록 완료")
-        except ImportError:
-            from routers.core import router as core_router
-            app.include_router(core_router)
-            logger.info("✅ Core 라우터 등록 완료")
-        
-        # 요약 라우터
-        try:
-            from .routers.summarize import router as summarize_router
-            app.include_router(summarize_router)
-            logger.info("✅ Summarize 라우터 등록 완료")
-        except ImportError:
-            try:
-                from routers.summarize import router as summarize_router
-                app.include_router(summarize_router)
-                logger.info("✅ Summarize 라우터 등록 완료")
-            except ImportError as e:
-                logger.warning(f"⚠️ Summarize 라우터 등록 실패: {e}")
-        
-        # 헬스 라우터 (별도 존재시)
-        try:
-            from .routers.health import router as health_router
-            app.include_router(health_router)
-            logger.info("✅ Health 라우터 등록 완료")
-        except ImportError:
-            try:
-                from routers.health import router as health_router
-                app.include_router(health_router)
-                logger.info("✅ Health 라우터 등록 완료")
-            except ImportError:
-                logger.info("ℹ️ Health 라우터는 Core에 포함됨")
-        
-    except Exception as e:
-        logger.error(f"❌ 라우터 등록 중 오류 발생: {e}")
+            # 직접 파일 import만 사용 (가장 안정적)
+            router_file = os.path.join(current_dir, "routers", f"{router_name}.py")
+            
+            if not os.path.exists(router_file):
+                logger.warning(f"⚠️ {description} 라우터 파일이 존재하지 않습니다: {router_file}")
+                continue
+                
+            spec = importlib.util.spec_from_file_location(f"routers.{router_name}", router_file)
+            if not spec or not spec.loader:
+                logger.warning(f"⚠️ {description} 라우터 spec 생성 실패")
+                continue
+                
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            if hasattr(module, "router"):
+                app.include_router(module.router)
+                logger.info(f"✅ {description} 라우터 등록 완료 ({router_name})")
+            else:
+                logger.warning(f"⚠️ {router_name} 모듈에 router 속성이 없습니다")
+
+        except Exception as e:
+            logger.error(f"❌ {description} 라우터 등록 중 오류 ({router_name}): {e}")
+            import traceback
+            logger.debug(f"상세 오류: {traceback.format_exc()}")
+
 
 # 라우터 등록 실행
 register_routers()
@@ -158,7 +163,7 @@ register_routers()
 # ===== 서버 실행 =====
 if __name__ == "__main__":
     import uvicorn
-    
+
     logger.info("🚀 FastAPI 서버를 직접 실행합니다...")
     uvicorn.run(
         "main:app",
@@ -166,5 +171,6 @@ if __name__ == "__main__":
         port=8001,
         reload=False,  # 프로덕션에서는 False
         log_level="info",
-        access_log=True
-    ) 
+        access_log=True,
+    )
+

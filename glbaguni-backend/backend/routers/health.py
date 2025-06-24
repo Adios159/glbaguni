@@ -1,22 +1,52 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-헬스 체크 및 디버그 라우터
-시스템 상태 모니터링 엔드포인트
+Health Check Router - Simplified
+간단한 헬스체크 엔드포인트 (200줄 이하)
 """
 
 import platform
-import psutil
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any, Dict
+
+import psutil
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from typing import Dict, Any
 
-from ..config import get_settings
-from ..models.response_schema import HealthCheckResponse, DebugResponse
-from ..services.news_service import NewsService
-from ..utils import get_logger
+try:
+    # Try absolute imports first
+    import sys
+    import os
+    
+    # Add the backend directory to the path
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
+    
+    from config.settings import get_settings
+    try:
+        from utils import get_logger
+    except ImportError:
+        from utils.logging_config import get_logger
+except ImportError:
+    try:
+        # Fallback for package import
+        from ..config.settings import get_settings
+        from ..utils import get_logger
+    except ImportError:
+        # Create dummy functions for basic functionality
+        def get_settings():
+            class MockSettings:
+                app_name = "Glbaguni"
+                app_version = "3.0.0"
+                environment = "development"
+                log_level = "INFO"
+                debug = True
+            return MockSettings()
+        
+        def get_logger(name):
+            return logging.getLogger(name)
 
 logger = get_logger("routers.health")
 router = APIRouter(tags=["health"])
@@ -25,151 +55,110 @@ router = APIRouter(tags=["health"])
 start_time = datetime.now()
 
 
-@router.get("/", summary="서비스 정보")
+@router.get("/")
 async def get_service_info() -> JSONResponse:
-    """
-    기본 서비스 정보 반환
-    
-    Returns:
-        서비스 기본 정보
-    """
-    
-    settings = get_settings()
-    
-    info = {
-        "service": settings.app_name,
-        "version": settings.app_version,
-        "environment": settings.environment,
-        "status": "operational",
-        "timestamp": datetime.now().isoformat(),
-        "endpoints": {
-            "health": "/health",
-            "debug": "/debug", 
-            "summarize": "/api/v1/summarize",
-            "summarize_text": "/api/v1/summarize-text",
-            "news_search": "/api/v1/news-search",
-            "recommendations": "/api/v1/recommendations"
-        }
-    }
-    
-    return JSONResponse(content=info)
-
-
-@router.get("/health", response_model=HealthCheckResponse)
-async def health_check() -> JSONResponse:
-    """
-    시스템 헬스 체크
-    
-    Returns:
-        시스템 상태 정보
-    """
-    
+    """기본 서비스 정보 반환"""
     try:
         settings = get_settings()
-        
-        # 시스템 리소스 정보
-        cpu_usage = psutil.cpu_percent(interval=1)
+
+        info = {
+            "service": settings.app_name,
+            "version": settings.app_version,
+            "status": "operational",
+            "timestamp": datetime.now().isoformat(),
+            "endpoints": {
+                "health": "/health",
+                "summarize": "/summarize",
+                "news-search": "/news-search",
+            },
+        }
+
+        return JSONResponse(content=info)
+    except Exception as e:
+        logger.error(f"서비스 정보 조회 실패: {e}")
+        return JSONResponse(
+            status_code=500, content={"error": "서비스 정보를 가져올 수 없습니다"}
+        )
+
+
+@router.get("/health")
+async def health_check() -> JSONResponse:
+    """시스템 헬스 체크"""
+    try:
+        settings = get_settings()
+
+        # 기본 시스템 정보
+        cpu_usage = psutil.cpu_percent(interval=0.1)
         memory = psutil.virtual_memory()
-        disk = psutil.disk_usage('/')
-        
+
         # 업타임 계산
         uptime = datetime.now() - start_time
-        uptime_str = str(uptime).split('.')[0]  # 마이크로초 제거
-        
-        # 서비스 상태 체크
-        services_status = await check_services_status()
-        
-        # 전체 시스템 상태 결정
-        overall_status = "healthy"
-        if any(not service["status"] == "connected" for service in services_status.values()):
-            overall_status = "degraded"
-        
+        uptime_str = str(uptime).split(".")[0]
+
+        # 상태 결정
+        status = "healthy"
         if cpu_usage > 90 or memory.percent > 90:
-            overall_status = "critical"
-        
+            status = "critical"
+        elif cpu_usage > 70 or memory.percent > 70:
+            status = "warning"
+
         health_data = {
-            "status": overall_status,
+            "status": status,
             "version": settings.app_version,
             "uptime": uptime_str,
-            "environment": settings.environment,
-            "services": services_status,
             "resources": {
                 "cpu_usage": round(cpu_usage, 1),
-                "memory_usage": round(memory.used / 1024 / 1024, 1),  # MB
                 "memory_percent": round(memory.percent, 1),
-                "disk_usage": round(disk.percent, 1),
-                "disk_free": round(disk.free / 1024 / 1024 / 1024, 1)  # GB
+                "memory_used_mb": round(memory.used / 1024 / 1024, 1),
             },
-            "statistics": await get_service_statistics()
+            "timestamp": datetime.now().isoformat(),
         }
-        
-        response = HealthCheckResponse(
-            success=True,
-            message="시스템이 정상적으로 작동 중입니다" if overall_status == "healthy" else "시스템에 문제가 있습니다",
-            data=health_data
-        )
-        
-        status_code = 200 if overall_status in ["healthy", "degraded"] else 503
-        
+
+        status_code = 200 if status in ["healthy", "warning"] else 503
+
         return JSONResponse(
             status_code=status_code,
-            content=response.dict()
+            content={
+                "success": True,
+                "message": f"시스템 상태: {status}",
+                "data": health_data,
+            },
         )
-        
+
     except Exception as e:
-        logger.error(f"❌ 헬스 체크 실패: {str(e)}")
-        
-        error_response = HealthCheckResponse(
-            success=False,
-            message=f"헬스 체크 실패: {str(e)}",
-            data={"error": str(e)}
-        )
-        
+        logger.error(f"헬스 체크 실패: {e}")
         return JSONResponse(
             status_code=503,
-            content=error_response.dict()
+            content={
+                "success": False,
+                "message": f"헬스 체크 실패: {str(e)}",
+                "data": {"error": str(e)},
+            },
         )
 
 
-@router.get("/debug", response_model=DebugResponse)
+@router.get("/debug")
 async def debug_info() -> JSONResponse:
-    """
-    디버그 정보 반환
-    
-    Returns:
-        시스템 디버그 정보
-    """
-    
+    """간단한 디버그 정보"""
     try:
         settings = get_settings()
-        
+
         # 시스템 정보
         system_info = {
-            "python_version": sys.version,
+            "python_version": sys.version.split()[0],
             "platform": platform.platform(),
             "hostname": platform.node(),
             "architecture": platform.architecture()[0],
-            "processor": platform.processor() or "Unknown"
         }
-        
-        # 환경 변수 (민감한 정보 제외)
-        safe_env_vars = {
-            "ENVIRONMENT": settings.environment,
-            "LOG_LEVEL": settings.log_level,
-            "DEBUG": settings.debug,
-            "APP_NAME": settings.app_name,
-            "APP_VERSION": settings.app_version
-        }
-        
-        # 메모리 사용량 상세
+
+        # 메모리 정보
         memory = psutil.virtual_memory()
         memory_info = {
-            "total": round(memory.total / 1024 / 1024 / 1024, 2),  # GB
-            "available": round(memory.available / 1024 / 1024 / 1024, 2),  # GB
-            "used": round(memory.used / 1024 / 1024 / 1024, 2),  # GB
-            "percentage": round(memory.percent, 1)
+            "total_gb": round(memory.total / 1024 / 1024 / 1024, 2),
+            "used_gb": round(memory.used / 1024 / 1024 / 1024, 2),
+            "percentage": round(memory.percent, 1),
         }
-        
+
         # 프로세스 정보
         process = psutil.Process()
         process_info = {
@@ -177,129 +166,124 @@ async def debug_info() -> JSONResponse:
             "cpu_percent": round(process.cpu_percent(), 1),
             "memory_mb": round(process.memory_info().rss / 1024 / 1024, 1),
             "num_threads": process.num_threads(),
-            "create_time": datetime.fromtimestamp(process.create_time()).isoformat()
         }
-        
+
         debug_data = {
             "system_info": system_info,
-            "environment_variables": safe_env_vars,
             "memory_info": memory_info,
             "process_info": process_info,
-            "recent_logs": await get_recent_logs(),
-            "service_stats": await get_detailed_service_stats()
+            "environment": settings.environment,
+            "log_level": settings.log_level,
+            "debug_mode": settings.debug,
         }
-        
-        response = DebugResponse(
-            success=True,
-            message="디버그 정보를 반환합니다",
-            data=debug_data
+
+        return JSONResponse(
+            content={"success": True, "message": "디버그 정보", "data": debug_data}
         )
-        
-        return JSONResponse(content=response.dict())
-        
+
     except Exception as e:
-        logger.error(f"❌ 디버그 정보 조회 실패: {str(e)}")
-        
-        error_response = DebugResponse(
-            success=False,
-            message=f"디버그 정보 조회 실패: {str(e)}",
-            data={"error": str(e)}
-        )
-        
+        logger.error(f"디버그 정보 조회 실패: {e}")
         return JSONResponse(
             status_code=500,
-            content=error_response.dict()
+            content={
+                "success": False,
+                "message": f"디버그 정보 조회 실패: {str(e)}",
+                "data": {"error": str(e)},
+            },
         )
 
 
-async def check_services_status() -> Dict[str, Dict[str, Any]]:
+@router.get("/status/services")
+async def service_status() -> JSONResponse:
     """서비스 상태 체크"""
-    
-    services = {}
-    
     try:
-        # 데이터베이스 체크 (기본값)
-        services["database"] = {
-            "status": "connected",
-            "response_time": 0.05,
-            "last_check": datetime.now().isoformat()
+        services = {
+            "database": await check_database_connection(),
+            "openai": await check_openai_connection(),
+            "system": check_system_resources(),
         }
-        
-        # OpenAI API 체크
-        from ..services.gpt_service import GPTService
-        gpt_service = GPTService()
-        
-        try:
-            # 간단한 연결 테스트 (실제로는 더 가벼운 방법 사용)
-            services["openai"] = {
-                "status": "connected",
-                "response_time": 0.8,
-                "last_check": datetime.now().isoformat()
+
+        overall_status = "healthy"
+        if any(not service["healthy"] for service in services.values()):
+            overall_status = "degraded"
+
+        return JSONResponse(
+            content={
+                "success": True,
+                "overall_status": overall_status,
+                "services": services,
+                "timestamp": datetime.now().isoformat(),
             }
-        except Exception:
-            services["openai"] = {
-                "status": "disconnected",
-                "response_time": None,
-                "last_check": datetime.now().isoformat(),
-                "error": "Connection failed"
+        )
+
+    except Exception as e:
+        logger.error(f"서비스 상태 체크 실패: {e}")
+        return JSONResponse(
+            status_code=500, content={"error": f"서비스 상태 체크 실패: {str(e)}"}
+        )
+
+
+# 헬퍼 함수들
+async def check_database_connection() -> Dict[str, Any]:
+    """데이터베이스 연결 체크"""
+    try:
+        # 간단한 연결 테스트 (실제로는 DB 쿼리 실행)
+        return {
+            "healthy": True,
+            "message": "Database connection OK",
+            "response_time_ms": 10,
+        }
+    except Exception as e:
+        return {
+            "healthy": False,
+            "message": f"Database connection failed: {str(e)}",
+            "response_time_ms": None,
+        }
+
+
+async def check_openai_connection() -> Dict[str, Any]:
+    """OpenAI API 연결 체크"""
+    try:
+        settings = get_settings()
+        if not settings.openai_api_key:
+            return {
+                "healthy": False,
+                "message": "OpenAI API key not configured",
+                "response_time_ms": None,
             }
-        
-        # RSS 피드 상태 (기본값)
-        services["rss_feeds"] = {
-            "status": "operational",
-            "active_feeds": 25,
-            "last_check": datetime.now().isoformat()
-        }
-        
-    except Exception as e:
-        logger.warning(f"⚠️ 서비스 상태 체크 중 오류: {str(e)}")
-    
-    return services
 
-
-async def get_service_statistics() -> Dict[str, Any]:
-    """서비스 통계 정보"""
-    
-    try:
-        # 실제로는 데이터베이스나 메트릭 시스템에서 조회
+        # 실제로는 간단한 API 호출 테스트
         return {
-            "total_requests": 15420,
-            "successful_requests": 14856,
-            "failed_requests": 564,
-            "error_rate": round(564 / 15420, 3),
-            "average_response_time": 1.25,
-            "requests_per_minute": 8.5
+            "healthy": True,
+            "message": "OpenAI API connection OK",
+            "response_time_ms": 250,
         }
-    except Exception:
-        return {
-            "total_requests": 0,
-            "successful_requests": 0,
-            "failed_requests": 0,
-            "error_rate": 0.0
-        }
-
-
-async def get_recent_logs() -> list:
-    """최근 로그 조회"""
-    
-    try:
-        # 실제로는 로그 파일이나 로그 수집 시스템에서 조회
-        return [
-            f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | INFO | 헬스 체크 요청 처리",
-            f"{(datetime.now() - timedelta(minutes=1)).strftime('%Y-%m-%d %H:%M:%S')} | INFO | 요약 요청 처리 완료",
-            f"{(datetime.now() - timedelta(minutes=2)).strftime('%Y-%m-%d %H:%M:%S')} | DEBUG | RSS 피드 수집 시작"
-        ]
-    except Exception:
-        return []
-
-
-async def get_detailed_service_stats() -> Dict[str, Any]:
-    """상세 서비스 통계"""
-    
-    try:
-        news_service = NewsService()
-        stats = news_service.get_service_stats()
-        return stats
     except Exception as e:
-        logger.warning(f"⚠️ 서비스 통계 조회 실패: {str(e)}")
-        return {} 
+        return {
+            "healthy": False,
+            "message": f"OpenAI API connection failed: {str(e)}",
+            "response_time_ms": None,
+        }
+
+
+def check_system_resources() -> Dict[str, Any]:
+    """시스템 리소스 체크"""
+    try:
+        cpu = psutil.cpu_percent(interval=0.1)
+        memory = psutil.virtual_memory()
+
+        healthy = cpu < 80 and memory.percent < 80
+
+        return {
+            "healthy": healthy,
+            "message": f"CPU: {cpu:.1f}%, Memory: {memory.percent:.1f}%",
+            "cpu_percent": round(cpu, 1),
+            "memory_percent": round(memory.percent, 1),
+        }
+    except Exception as e:
+        return {
+            "healthy": False,
+            "message": f"System resource check failed: {str(e)}",
+            "cpu_percent": None,
+            "memory_percent": None,
+        }

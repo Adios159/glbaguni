@@ -1,12 +1,12 @@
 """
-라우터 패키지
-API 엔드포인트별 라우터 모듈들
+Routers package for glbaguni backend.
+Contains FastAPI route definitions.
 """
 
-from .summarize import router as summarize_router
-from .health import router as health_router
+from backend.routers.health import router as health_router
+from backend.routers.summarize import router as summarize_router
 
 __all__ = [
-    'summarize_router',
-    'health_router'
-] 
+    "health_router",
+    "summarize_router",
+]

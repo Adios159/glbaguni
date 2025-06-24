@@ -1,18 +1,18 @@
 """
-서비스 계층 패키지
-비즈니스 로직을 담당하는 서비스들
+Services package for glbaguni backend.
+Contains business logic and service classes.
 """
 
-from .gpt_service import GPTService
-from .rss_service import RSSService
-from .summarizer_service import SummarizerService
-from .news_service import NewsService
-from .history_service import HistoryService
+from backend.services.gpt_service import GPTService
+from backend.services.history_service import HistoryService
+from backend.services.news_service import NewsService
+from backend.services.rss_service import RSSService
+from backend.services.summarizer_service import SummarizerService
 
 __all__ = [
-    'GPTService',
-    'RSSService', 
-    'SummarizerService',
-    'NewsService',
-    'HistoryService'
-] 
+    "GPTService",
+    "NewsService",
+    "RSSService",
+    "SummarizerService",
+    "HistoryService",
+]

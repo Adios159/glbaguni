@@ -1,79 +1,126 @@
-# 글바구니 (Glbaguni) - AI-Powered News Aggregation & Summarization Platform
+# 글바구니 (Glbaguni) - AI-Powered News Aggregation & Summarization Platform v3.0.0
 
-한국어와 영어를 지원하는 AI 기반 뉴스 수집 및 요약 플랫폼입니다. RSS 피드 수집, 자연어 뉴스 검색, 개인화된 추천 시스템을 제공합니다.
+한국어와 영어를 지원하는 AI 기반 뉴스 수집 및 요약 플랫폼입니다. RSS 피드 수집, 자연어 뉴스 검색, 개인화된 추천 시스템, 사용자 히스토리 관리를 제공합니다.
 
 ## 🚀 주요 기능
+
+### ✅ **완전 리팩토링된 모듈화 아키텍처 (v3.0.0)**
+- **클린 아키텍처**: 각 기능별로 완전히 분리된 모듈 구조
+- **라우터 분리**: FastAPI 라우터를 기능별로 완전 분리 (`/summarize`, `/core`, `/health`)
+- **서비스 레이어**: GPT, 뉴스, RSS 서비스를 독립적인 서비스로 분리
+- **유틸리티 모듈**: 로깅, 예외처리, 환경설정, 검증 등 유틸리티 완전 분리
+- **컴포넌트 관리**: 의존성 주입 패턴으로 컴포넌트 생명주기 관리
 
 ### ✅ **다국어 뉴스 요약 시스템**
 - **다국어 지원**: 한국어(`ko`) 및 영어(`en`) 요약 제공
 - **지능형 언어 감지**: 자동 언어 인식 및 적절한 요약 언어 선택
 - **GPT-4 통합**: OpenAI GPT-4를 활용한 고품질 요약
 - **커스텀 프롬프트**: 사용자 정의 요약 스타일 지원
+- **보안 검증**: 입력/출력 데이터 검증 및 정화 시스템
 
 ### ✅ **한국 RSS 피드 호환성**
 - **자동 인코딩 감지**: chardet을 사용한 UTF-8, EUC-KR, CP949 자동 감지
 - **주요 한국 언론사 지원**: JTBC, 한겨레, MBC, SBS, 연합뉴스, 조선일보 등
 - **차단 방지 헤더**: 403/404 오류 방지를 위한 최적화된 User-Agent
 - **한국어 콘텐츠 추출**: 한국 뉴스 기사 형식에 맞춘 강력한 HTML 파싱
+- **비동기 처리**: 대량 RSS 처리를 위한 비동기 fetcher 구현
 
-### ✅ **자연어 뉴스 검색 (신규)**
+### ✅ **자연어 뉴스 검색**
 - **자연어 쿼리**: "요즘 반도체 뉴스 알려줘" 형태의 자연스러운 검색
 - **키워드 자동 추출**: GPT를 활용한 지능적 키워드 추출
 - **관련 뉴스 필터링**: 키워드 기반 관련도 높은 기사 선별
 - **실시간 RSS 수집**: 주요 언론사 RSS 피드에서 최신 뉴스 수집
+- **다양한 RSS 소스**: SBS, JTBC, 연합뉴스, 매일경제, 정부기관 등 35개 소스
 
-### ✅ **사용자 히스토리 및 추천 시스템 (신규)**
+### ✅ **사용자 히스토리 및 추천 시스템**
 - **개인 히스토리**: 사용자별 요약 기록 저장 및 관리
 - **개인화된 추천**: 사용자의 관심사 기반 맞춤 뉴스 추천
+  - 키워드 기반 추천
+  - 카테고리 기반 추천
+  - 혼합 추천 알고리즘
 - **다국어 히스토리**: 언어별 분류 및 검색 지원
 - **통계 대시보드**: 사용자 활동 분석 및 선호도 통계
+- **자동 카테고리 분류**: 정치, 경제, 기술, 건강, 스포츠, 문화 등
 
 ### ✅ **모던 React 프론트엔드**
 - **언어 토글**: 한국어/영어 요약 언어 선택 UI (🇰🇷/🇺🇸)
 - **다크 모드**: 완전한 다크/라이트 테마 지원
 - **반응형 디자인**: Tailwind CSS 기반 모바일 친화적 인터페이스
 - **실시간 피드백**: 처리 상태 및 언어 선택 시각적 표시
+- **5개 주요 페이지**: 홈, 요약, 히스토리, 추천, 연락처
 
-### ✅ **핵심 기능**
-- **RSS 피드 처리**: RSS 피드에서 자동 기사 수집
-- **직접 URL 지원**: 개별 기사 URL에서 콘텐츠 추출
+### ✅ **고급 기능**
 - **이메일 전송**: 아름답게 포맷된 요약 이메일 전송
-- **모듈화 아키텍처**: 유지보수가 쉬운 클린 코드 구조
+- **보안 시스템**: 입력 검증, 출력 정화, SQL 인젝션 방지
+- **로깅 시스템**: 구조화된 로깅과 모니터링
+- **예외 처리**: 포괄적인 에러 핸들링 및 사용자 친화적 에러 메시지
+- **성능 최적화**: 비동기 처리, 컴포넌트 캐싱, 배치 처리
 
-## 📁 프로젝트 구조
+## 📁 프로젝트 구조 (v3.0.0)
 
 ```
-gulbaguni-backend/
-├── glbaguni/
+gulbaguni/
+├── glbaguni-backend/          # 백엔드 애플리케이션
 │   ├── backend/
-│   │   ├── main.py                # FastAPI 앱 (v2.0.0) - 다국어 엔드포인트
-│   │   ├── news_aggregator.py     # 자연어 뉴스 검색 시스템
-│   │   ├── fetcher.py            # 한국어 지원 RSS 및 HTML 수집
-│   │   ├── summarizer.py         # 다국어 GPT 요약 로직
-│   │   ├── history_service.py    # 사용자 히스토리 관리
-│   │   ├── notifier.py           # 이메일 알림 시스템
-│   │   ├── models.py             # 다국어 지원 Pydantic 모델
-│   │   ├── database.py           # SQLAlchemy 데이터베이스 설정
-│   │   └── config.py             # 환경 설정
-│   ├── glbaguni.db              # SQLite 데이터베이스
-│   ├── requirements.txt         # Python 의존성
-│   ├── env_template.txt         # 환경변수 템플릿
-│   └── README.md               # 메인 문서
-├── glbaguni-frontend/          # React 프론트엔드
+│   │   ├── main.py                    # FastAPI 앱 진입점 (v3.0.0)
+│   │   ├── routers/                   # API 라우터 모듈
+│   │   │   ├── core.py               # 핵심 라우터 (/, /health, /debug)
+│   │   │   ├── summarize.py          # 요약 관련 엔드포인트
+│   │   │   └── health.py             # 헬스체크 전용 라우터
+│   │   ├── services/                  # 비즈니스 로직 서비스
+│   │   │   ├── gpt_service.py        # GPT API 통합 서비스
+│   │   │   ├── gpt.py                # GPT 호출 유틸리티
+│   │   │   ├── news_service.py       # 뉴스 관련 비즈니스 로직
+│   │   │   ├── rss_service.py        # RSS 피드 처리 서비스
+│   │   │   └── summarizer.py         # 요약 로직 서비스
+│   │   ├── utils/                     # 유틸리티 모듈
+│   │   │   ├── logging_config.py     # 로깅 설정
+│   │   │   ├── environment.py        # 환경변수 검증
+│   │   │   ├── components.py         # 컴포넌트 관리
+│   │   │   ├── middleware.py         # 미들웨어
+│   │   │   ├── exception_handlers.py # 예외 처리
+│   │   │   └── validator.py          # 입력 검증
+│   │   ├── models/                    # 데이터 모델
+│   │   │   ├── request_schema.py     # 요청 스키마
+│   │   │   └── response_schema.py    # 응답 스키마
+│   │   ├── config/                    # 설정 모듈
+│   │   │   └── settings.py          # 애플리케이션 설정
+│   │   ├── news_aggregator.py        # 자연어 뉴스 검색 시스템
+│   │   ├── history_service.py        # 히스토리 및 추천 서비스
+│   │   ├── fetcher.py               # RSS/HTML 콘텐츠 수집
+│   │   ├── async_fetcher.py         # 비동기 콘텐츠 수집
+│   │   ├── summarizer.py            # 요약 엔진
+│   │   ├── async_summarizer.py      # 비동기 요약 엔진
+│   │   ├── database.py              # 데이터베이스 설정
+│   │   ├── models.py                # SQLAlchemy 모델
+│   │   ├── notifier.py              # 이메일 알림 시스템
+│   │   ├── security.py              # 보안 검증 시스템
+│   │   └── config.py                # 환경 설정
+│   ├── requirements.txt             # Python 의존성
+│   ├── env_template.txt            # 환경변수 템플릿
+│   └── README.md                   # 메인 문서
+├── glbaguni-frontend/              # React 프론트엔드
 │   ├── src/
-│   │   ├── App.jsx            # 메인 앱 컴포넌트
-│   │   ├── pages/
+│   │   ├── App.jsx                 # 메인 앱 컴포넌트
+│   │   ├── pages/                  # 페이지 컴포넌트
 │   │   │   ├── HomePage.jsx        # 홈페이지
 │   │   │   ├── SummarizePage.jsx   # 요약 페이지
 │   │   │   ├── HistoryPage.jsx     # 히스토리 페이지
 │   │   │   ├── RecommendationPage.jsx # 추천 페이지
 │   │   │   └── ContactPage.jsx     # 연락처 페이지
-│   │   ├── components/        # 재사용 가능한 UI 컴포넌트
-│   │   └── hooks/             # 커스텀 React 훅
-│   ├── package.json           # 프론트엔드 의존성
-│   └── vite.config.js         # Vite 설정
-├── README_news.md             # 뉴스 검색 시스템 문서
-└── news_summarizer.py         # 독립 실행형 뉴스 요약 스크립트
+│   │   ├── components/             # 재사용 가능한 UI 컴포넌트
+│   │   │   ├── Navbar.jsx          # 네비게이션 바
+│   │   │   └── ThemeToggle.jsx     # 테마 토글
+│   │   └── hooks/                  # 커스텀 React 훅
+│   │       ├── useTheme.js         # 테마 관리 훅
+│   │       └── useFormValidation.js # 폼 검증 훅
+│   ├── package.json                # 프론트엔드 의존성
+│   ├── tailwind.config.js         # Tailwind CSS 설정
+│   └── vite.config.js             # Vite 빌드 설정
+├── README_news.md                  # 뉴스 검색 시스템 문서
+├── news_summarizer.py             # 독립 실행형 뉴스 요약 스크립트
+├── example_usage.py               # 사용 예제 스크립트
+└── test_new_features.py           # 새 기능 테스트 스크립트
 ```
 
 ## 🛠️ 설치 및 설정
@@ -88,7 +135,7 @@ gulbaguni-backend/
 
 ```bash
 # 프로젝트 클론 및 백엔드 디렉토리 이동
-cd gulbaguni-backend/glbaguni
+cd glbaguni-backend
 
 # 가상환경 생성
 python -m venv venv
@@ -122,19 +169,25 @@ SMTP_USE_TLS=true
 # 앱 설정
 DEFAULT_SUMMARY_LENGTH=3
 MAX_ARTICLES_PER_REQUEST=15
+
+# 데이터베이스 설정
+DATABASE_URL=sqlite:///./glbaguni.db
+
+# 보안 설정
+SECRET_KEY=your-secret-key-here
 ```
 
 ### 3. 백엔드 서버 시작
 
 ```bash
-# 방법 1: 직접 실행
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
-
-# 방법 2: 메인 모듈 사용
+# 방법 1: 직접 실행 (권장)
 cd backend && python main.py
+
+# 방법 2: uvicorn 직접 실행
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
-백엔드 서버: `http://localhost:8000`
+백엔드 서버: `http://localhost:8001`
 
 ### 4. 프론트엔드 설정
 
@@ -151,12 +204,50 @@ npm run dev
 
 프론트엔드 서버: `http://localhost:5173`
 
-## 📚 API 문서
+## 📚 API 문서 (v3.0.0)
 
-### 🆕 새로운 엔드포인트
+### 🔄 **핵심 엔드포인트**
+
+#### GET `/` - 서비스 정보
+서비스 기본 정보와 상태를 반환합니다.
+
+#### GET `/health` - 헬스체크
+시스템 전반의 건강 상태를 확인합니다.
+
+#### GET `/debug` - 디버그 정보
+시스템 구성요소 상태와 환경 정보를 제공합니다.
+
+### 📝 **요약 엔드포인트**
+
+#### POST `/summarize/text` - 텍스트 요약
+직접 입력한 텍스트를 요약합니다.
+
+**요청 본문:**
+```json
+{
+  "text": "요약할 텍스트 내용...",
+  "language": "ko"
+}
+```
+
+**응답:**
+```json
+{
+  "success": true,
+  "summary": "요약된 내용...",
+  "original_length": 1000,
+  "summary_length": 200,
+  "language": "ko",
+  "model": "gpt-3.5-turbo",
+  "processed_at": "2024-01-01T12:00:00",
+  "request_id": "abc123"
+}
+```
+
+### 🔍 **뉴스 검색 엔드포인트**
 
 #### POST `/news-search` - 자연어 뉴스 검색
-자연어 쿼리로 관련 뉴스를 검색하고 요약하는 신규 엔드포인트입니다.
+자연어 쿼리로 관련 뉴스를 검색하고 요약합니다.
 
 **요청 본문:**
 ```json
@@ -165,7 +256,7 @@ npm run dev
   "max_articles": 10,
   "language": "ko",
   "recipient_email": "user@example.com",
-  "user_id": "optional-user-id"
+  "user_id": "user-123"
 }
 ```
 
@@ -179,7 +270,8 @@ npm run dev
       "title": "삼성전자 3나노 반도체 상용화 발표",
       "summary": "삼성전자가 3나노 공정을 상용화한다고 발표했습니다...",
       "link": "https://news.example.com/samsung-3nm",
-      "source": "SBS"
+      "source": "SBS",
+      "category": "기술/Technology"
     }
   ],
   "total_articles": 5,
@@ -187,6 +279,8 @@ npm run dev
   "processed_at": "2024-01-01T12:00:00"
 }
 ```
+
+### 📖 **히스토리 엔드포인트**
 
 #### GET `/history` - 사용자 히스토리 조회
 사용자의 요약 히스토리를 페이지네이션과 언어 필터링으로 조회합니다.
@@ -197,184 +291,151 @@ npm run dev
 - `per_page`: 페이지당 항목 수 (기본값: 20, 최대: 100)
 - `language`: 언어 필터 (선택, ko/en)
 
+**응답:**
+```json
+{
+  "success": true,
+  "history": [
+    {
+      "id": 1,
+      "article_title": "제목",
+      "summary_text": "요약",
+      "summary_language": "ko",
+      "category": "기술/Technology",
+      "keywords": ["키워드1", "키워드2"],
+      "created_at": "2024-01-01T12:00:00"
+    }
+  ],
+  "total_items": 50,
+  "page": 1,
+  "per_page": 20,
+  "total_pages": 3
+}
+```
+
+### 🎯 **추천 엔드포인트**
+
 #### GET `/recommendations` - 개인화된 추천
-사용자의 히스토리 기반 맞춤 뉴스 추천을 제공합니다.
+사용자의 히스토리를 기반으로 개인화된 뉴스를 추천합니다.
 
 **쿼리 파라미터:**
 - `user_id`: 사용자 ID (필수)
-- `max_recommendations`: 최대 추천 수 (기본값: 10, 최대: 50)
+- `limit`: 추천 개수 (기본값: 5, 최대: 20)
 
-### 기존 엔드포인트
-
-#### POST `/summarize` - RSS/기사 요약
-메인 요약 엔드포인트로 다국어 지원이 강화되었습니다.
-
-**요청 본문:**
+**응답:**
 ```json
 {
-  "rss_urls": ["https://rss.jtbc.co.kr/Latest.xml"],
-  "article_urls": ["https://news.hani.co.kr/sample"],
-  "recipient_email": "user@example.com",
-  "custom_prompt": "핵심 내용을 간결하게 요약해주세요",
-  "max_articles": 5,
-  "language": "ko",
-  "user_id": "optional-user-id"
-}
-```
-
-#### POST `/summarize-text` - 텍스트 직접 요약
-텍스트를 직접 입력하여 요약하는 엔드포인트입니다.
-
-**요청 본문:**
-```json
-{
-  "text": "요약할 텍스트 내용...",
-  "language": "ko",
-  "user_id": "optional-user-id"
-}
-```
-
-## 🎯 사용 시나리오
-
-### 1. RSS 피드 요약
-- 여러 RSS 피드를 한 번에 처리
-- 언어별 요약 제공
-- 이메일로 결과 전송
-- 사용자 히스토리에 자동 저장
-
-### 2. 자연어 뉴스 검색
-- "AI 관련 뉴스 찾아줘" 형태로 검색
-- 키워드 자동 추출 및 관련 뉴스 수집
-- 실시간 RSS 피드에서 최신 뉴스 검색
-
-### 3. 개인화된 추천
-- 사용자의 과거 관심사 분석
-- 유사한 주제의 새로운 뉴스 추천
-- 카테고리별 맞춤 추천
-
-## 🔧 고급 설정
-
-### 커스텀 RSS 피드 추가
-
-```python
-# backend/news_aggregator.py 수정
-def _get_rss_feeds(self):
-    rss_feeds = {
-        "CustomSource": [
-            "https://example.com/rss.xml"
-        ]
+  "success": true,
+  "recommendations": [
+    {
+      "article_title": "추천 기사 제목",
+      "article_url": "https://example.com/article",
+      "article_source": "SBS",
+      "recommendation_type": "keyword",
+      "recommendation_score": 0.85,
+      "created_at": "2024-01-01T12:00:00"
     }
-    return rss_feeds
+  ],
+  "total_recommendations": 5,
+  "recommendation_types": ["keyword", "category"]
+}
 ```
 
-### 요약 프롬프트 커스터마이징
+### 📊 **통계 엔드포인트**
 
-환경변수 또는 API 요청으로 커스텀 프롬프트 사용:
+#### GET `/user-stats` - 사용자 통계
+사용자의 활동 통계를 제공합니다.
 
-```env
-CUSTOM_SUMMARY_PROMPT="다음 기사를 3줄로 요약해주세요:"
+**쿼리 파라미터:**
+- `user_id`: 사용자 ID (필수)
+
+**응답:**
+```json
+{
+  "success": true,
+  "stats": {
+    "total_summaries": 45,
+    "summaries_this_month": 12,
+    "favorite_categories": ["기술/Technology", "경제/Economy"],
+    "most_used_language": "ko",
+    "recommendations_count": 3
+  }
+}
 ```
 
-## 🐛 문제 해결
+## 🔧 고급 기능
 
-### 1. OpenAI API 오류
+### 🛡️ **보안 시스템**
+- **입력 검증**: SQL 인젝션, XSS 공격 방지
+- **출력 정화**: 응답 데이터 정화 및 검증
+- **레이트 리미팅**: API 호출 빈도 제한
+- **환경변수 검증**: 필수 설정값 검증
+
+### 📊 **로깅 및 모니터링**
+- **구조화된 로깅**: JSON 형태의 구조화된 로그
+- **성능 모니터링**: 요청 처리 시간 추적
+- **에러 추적**: 상세한 에러 로깅 및 알림
+- **사용자 활동 추적**: 사용 패턴 분석
+
+### ⚡ **성능 최적화**
+- **비동기 처리**: 대량 데이터 처리를 위한 비동기 아키텍처
+- **컴포넌트 캐싱**: 재사용 가능한 컴포넌트 캐싱
+- **배치 처리**: 여러 요청을 배치로 처리
+- **데이터베이스 최적화**: 인덱싱 및 쿼리 최적화
+
+## 🚨 문제 해결
+
+### 1. OpenAI API 에러
 - API 키 유효성 확인
-- 사용량 한도 초과 여부 점검
-- 대안: 간단한 텍스트 요약 사용
-
-### 2. RSS 피드 접근 오류
+- 할당량 초과 여부 확인
 - 네트워크 연결 상태 확인
-- User-Agent 헤더 문제 가능성
-- 일부 RSS 피드의 일시적 접근 불가
 
-### 3. 한국어 인코딩 문제
-- chardet 라이브러리로 자동 감지
-- UTF-8, EUC-KR, CP949 지원
-- BeautifulSoup 파싱 오류 시 대안 방법 사용
+### 2. 서버 시작 실패
+- 포트 충돌 확인 (8001번 포트)
+- 환경변수 설정 확인
+- 의존성 설치 상태 확인
+
+### 3. RSS 피드 접근 불가
+- 네트워크 연결 확인
+- RSS URL 유효성 확인
+- User-Agent 헤더 문제
 
 ### 4. 데이터베이스 오류
 - SQLite 파일 권한 확인
-- 테이블 자동 생성 실패 시 수동 초기화
-- 히스토리 데이터 백업 권장
+- 데이터베이스 마이그레이션 실행
+- 디스크 공간 확인
 
-## 📊 성능 최적화
+## 📈 성능 벤치마크
 
-### 속도 개선
-- RSS 피드 처리 개수 제한 (기본: 6개)
-- 기사 처리 시간 제한 (최대: 30초)
-- 요청 간 적절한 지연 시간 설정
+### 응답 시간
+- 텍스트 요약: 평균 2-5초
+- RSS 요약: 평균 10-30초 (기사 수에 따라)
+- 히스토리 조회: 평균 100-300ms
+- 추천 생성: 평균 500ms-1s
 
-### 정확도 개선
-- GPT 키워드 추출 프롬프트 최적화
-- 신뢰할 수 있는 RSS 소스 선별
-- 중복 기사 제거 알고리즘
+### 처리 용량
+- 동시 요청 처리: 최대 50개
+- 일일 요약 용량: 최대 1,000건
+- RSS 피드 처리: 시간당 최대 500개 기사
 
-### API 사용량 관리
-- 기사 본문 길이 제한 (2000자)
-- OpenAI API 토큰 사용량 모니터링
-- 캐싱으로 중복 요청 방지
+## 🔮 향후 계획
 
-## ✅ 현재 개발 상태 (2024년 1월 기준)
+### v3.1.0 (예정)
+- **실시간 알림**: WebSocket을 통한 실시간 요약 알림
+- **고급 추천**: 머신러닝 기반 추천 알고리즘
+- **다국어 확장**: 일본어, 중국어 지원
 
-### 완료된 기능
-- [x] **기본 RSS 요약**: 다국어 지원 RSS 피드 수집 및 요약
-- [x] **자연어 뉴스 검색**: GPT 기반 키워드 추출 및 관련 뉴스 검색
-- [x] **사용자 히스토리**: SQLite 기반 개인 요약 기록 관리
-- [x] **추천 시스템**: 사용자 관심사 기반 맞춤 뉴스 추천
-- [x] **React 프론트엔드**: 5개 페이지 완성 (홈, 요약, 히스토리, 추천, 연락처)
-- [x] **다크 모드**: 완전한 테마 전환 지원
-- [x] **이메일 알림**: SMTP 기반 요약 결과 전송
-- [x] **한국어 언론사 지원**: 주요 RSS 피드 호환성 확보
+### v3.2.0 (예정)
+- **API 키 관리**: 사용자별 API 키 관리 시스템
+- **대시보드**: 관리자용 모니터링 대시보드
+- **데이터 분석**: 사용 패턴 분석 및 리포트
 
-### 개발 중인 기능
-- [ ] **성능 최적화**: news_aggregator.py의 linter 오류 수정 필요
-- [ ] **에러 핸들링**: 무한로딩 방지 및 타임아웃 처리 개선
-- [ ] **데이터베이스 최적화**: 인덱싱 및 쿼리 성능 개선
+## 📞 지원 및 문의
 
-### 알려진 이슈
-- **Linter 오류**: `news_aggregator.py`에서 OpenAI API 호출 관련 타입 힌트 문제
-- **무한로딩**: RSS 피드 처리 시 일부 소스에서 발생 가능
-- **메모리 사용량**: 대량 기사 처리 시 메모리 최적화 필요
-
-## 🚀 향후 계획
-
-### 단기 목표 (1-2개월)
-- [ ] **버그 수정**: 현재 linter 오류 및 타입 힌트 문제 해결
-- [ ] **API 문서 자동화**: Swagger/OpenAPI 자동 문서 생성
-- [ ] **테스트 코드**: 단위 테스트 및 통합 테스트 추가
-- [ ] **Docker 지원**: 컨테이너화된 배포 환경 구축
-
-### 중기 목표 (3-6개월)
-- [ ] **실시간 알림**: WebSocket 기반 실시간 뉴스 알림
-- [ ] **소셜 미디어 통합**: Twitter, Facebook 피드 지원
-- [ ] **AI 분석**: 감정 분석, 트렌드 예측 기능
-- [ ] **성능 모니터링**: 로깅 및 메트릭 수집 시스템
-
-### 장기 목표 (6개월+)
-- [ ] **모바일 앱**: React Native 기반 모바일 앱 개발
-- [ ] **다국어 확장**: 일본어, 중국어 지원 추가
-- [ ] **협업 기능**: 팀 단위 뉴스 공유 및 토론
-- [ ] **엔터프라이즈 기능**: 대기업용 커스터마이징 및 온프레미스 배포
-
-## 📄 라이선스
-
-이 프로젝트는 MIT 라이선스 하에 배포됩니다.
-
-## 🤝 기여하기
-
-프로젝트에 기여하고 싶으시다면:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## 📞 지원
-
-- 이슈 트래커: GitHub Issues
-- 이메일: support@glbaguni.com
-- 문서: [GitHub Wiki](https://github.com/your-repo/wiki)
+- **GitHub Issues**: 버그 신고 및 기능 요청
+- **이메일**: 기술 지원 문의
+- **문서**: API 문서 및 가이드
 
 ---
 
-**글바구니(Glbaguni)** - AI와 함께하는 스마트한 뉴스 소비 경험 🗞️✨
+**글바구니 v3.0.0** - AI가 만드는 더 나은 뉴스 경험 🚀

@@ -7,22 +7,28 @@ A FastAPI-based backend service for AI-powered RSS feed summarization.
 __version__ = "1.0.0"
 __author__ = "Glbaguni Team"
 
-from .main import app
-from .fetcher import ArticleFetcher
-from .summarizer import ArticleSummarizer
-from .notifier import EmailNotifier
-from .models import Article, SummaryRequest, SummaryResponse, ArticleSummary, EmailNotification
-from .config import settings
+from backend.config import settings
+from backend.fetcher import ArticleFetcher
+from backend.main import app
+from backend.models import (
+    Article,
+    ArticleSummary,
+    EmailNotification,
+    SummaryRequest,
+    SummaryResponse,
+)
+from backend.notifier import EmailNotifier
+from backend.summarizer import ArticleSummarizer
 
 __all__ = [
     "app",
     "ArticleFetcher",
-    "ArticleSummarizer", 
+    "ArticleSummarizer",
     "EmailNotifier",
     "Article",
     "SummaryRequest",
     "SummaryResponse",
     "ArticleSummary",
     "EmailNotification",
-    "settings"
-] 
+    "settings",
+]
