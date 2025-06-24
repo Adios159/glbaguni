@@ -136,7 +136,7 @@ class NewsService:
     ) -> List[Article]:
         """
         뉴스 검색
-        (현재는 기본 구현, 실제로는 검색 엔진 API 연동 필요)
+        NewsAggregator를 사용하여 실제 뉴스 검색 수행
 
         Args:
             query: 검색 쿼리
@@ -149,8 +149,45 @@ class NewsService:
 
         logger.info(f"🔍 뉴스 검색: {query}")
 
-        # 임시 구현 - 실제로는 외부 뉴스 API나 검색 엔진 사용
-        return []
+        try:
+            # NewsAggregator 임포트 및 사용
+            from ..news_aggregator import NewsAggregator
+            from ..config import get_settings
+            
+            settings = get_settings()
+            openai_api_key = getattr(settings, 'openai_api_key', None)
+            
+            # NewsAggregator 인스턴스 생성
+            news_aggregator = NewsAggregator(openai_api_key=openai_api_key)
+            
+            # 뉴스 검색 실행
+            logger.info(f"🔄 NewsAggregator를 사용하여 뉴스 검색 중...")
+            news_articles, keywords = news_aggregator.process_news_query(
+                query=query, 
+                max_articles=min(max_results, 20)
+            )
+            
+            # NewsArticle을 Article 형태로 변환
+            result_articles = []
+            for news_article in news_articles:
+                article = Article(
+                    title=news_article.title,
+                    url=news_article.link,
+                    content=news_article.content or news_article.summary,
+                    source=news_article.source,
+                    published_at=datetime.now()  # published_date 파싱은 별도 구현 필요
+                )
+                result_articles.append(article)
+            
+            logger.info(f"✅ 뉴스 검색 완료: {len(result_articles)}개 기사 발견")
+            logger.info(f"🏷️ 추출된 키워드: {keywords}")
+            
+            return result_articles
+            
+        except Exception as e:
+            logger.error(f"❌ 뉴스 검색 실패: {str(e)}")
+            # 오류 발생시 빈 리스트 반환 (서비스 중단 방지)
+            return []
 
     async def get_recommendations(
         self, user_interests: List[str], max_recommendations: int = 15

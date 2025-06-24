@@ -14,11 +14,15 @@ from sqlalchemy import and_, desc, or_
 from sqlalchemy.orm import Session
 
 try:
-    from .database import get_or_create_user_preferences
-    from .models import Article, RecommendationLog, UserHistory, UserPreferences
+    from backend.database import get_or_create_user_preferences
+    from backend.models import Article, RecommendationLog, UserHistory, UserPreferences
 except ImportError:
-    from database import get_or_create_user_preferences
-    from models import Article, RecommendationLog, UserHistory, UserPreferences
+    try:
+        from .database import get_or_create_user_preferences
+        from .models import Article, RecommendationLog, UserHistory, UserPreferences
+    except ImportError:
+        from database import get_or_create_user_preferences
+        from models import Article, RecommendationLog, UserHistory, UserPreferences
 
 logger = logging.getLogger(__name__)
 

@@ -19,6 +19,10 @@ pydantic[email]==2.5.0
 pydantic-settings==2.1.0
 python-multipart==0.0.6
 
+# ===== Authentication & Security =====
+PyJWT>=2.8.0
+passlib[bcrypt]>=1.7.4
+
 # ===== News & Content Processing =====
 lxml==4.9.3
 

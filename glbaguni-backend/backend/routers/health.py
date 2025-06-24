@@ -197,29 +197,148 @@ async def debug_info() -> JSONResponse:
 async def service_status() -> JSONResponse:
     """서비스 상태 체크"""
     try:
+        # 강화된 컴포넌트 매니저 사용
+        try:
+            from ..utils.component_manager import get_component_status, perform_component_health_checks
+            component_report = get_component_status()
+            health_results = await perform_component_health_checks()
+        except ImportError:
+            # 폴백
+            component_report = {"system_status": "unknown", "summary": {"total_components": 0}}
+            health_results = {}
+
         services = {
             "database": await check_database_connection(),
             "openai": await check_openai_connection(),
-            "system": check_system_resources(),
+            "system_resources": check_system_resources(),
+            "components": {
+                "summary": component_report.get("summary", {}),
+                "system_status": component_report.get("system_status", "unknown"),
+                "health_checks": health_results,
+                "details": component_report.get("components", {})
+            }
         }
 
+        # 전체 서비스 상태 결정
         overall_status = "healthy"
-        if any(not service["healthy"] for service in services.values()):
+        critical_issues = []
+        
+        # 데이터베이스 상태 체크
+        if not services["database"]["status"]:
+            critical_issues.append("database_failed")
+            
+        # 컴포넌트 상태 체크
+        component_status = component_report.get("system_status", "unknown")
+        if component_status == "critical":
+            critical_issues.append("critical_components_failed")
+            overall_status = "critical"
+        elif component_status == "degraded":
             overall_status = "degraded"
+            
+        # 시스템 리소스 체크
+        resources = services["system_resources"]
+        if resources["cpu_usage"] > 90 or resources["memory_percent"] > 90:
+            critical_issues.append("resource_exhaustion")
+            overall_status = "critical"
+        elif resources["cpu_usage"] > 70 or resources["memory_percent"] > 70:
+            if overall_status == "healthy":
+                overall_status = "warning"
+
+        services["overall_status"] = overall_status
+        services["critical_issues"] = critical_issues
+        services["timestamp"] = datetime.now().isoformat()
+
+        status_code = 200
+        if overall_status == "critical":
+            status_code = 503
+        elif overall_status == "degraded":
+            status_code = 206
 
         return JSONResponse(
+            status_code=status_code,
             content={
                 "success": True,
-                "overall_status": overall_status,
-                "services": services,
-                "timestamp": datetime.now().isoformat(),
-            }
+                "message": f"서비스 상태: {overall_status}",
+                "data": services,
+            },
         )
 
     except Exception as e:
         logger.error(f"서비스 상태 체크 실패: {e}")
         return JSONResponse(
-            status_code=500, content={"error": f"서비스 상태 체크 실패: {str(e)}"}
+            status_code=503,
+            content={
+                "success": False,
+                "message": f"서비스 상태 체크 실패: {str(e)}",
+                "data": {"error": str(e)},
+            },
+        )
+
+
+@router.post("/components/retry")
+async def retry_failed_components_endpoint() -> JSONResponse:
+    """실패한 컴포넌트 재시도"""
+    try:
+        from ..utils.component_manager import retry_failed_components
+        
+        retry_results = await retry_failed_components()
+        
+        return JSONResponse(
+            content={
+                "success": True,
+                "message": "컴포넌트 재시도 완료",
+                "data": {
+                    "retry_results": retry_results,
+                    "timestamp": datetime.now().isoformat()
+                }
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"컴포넌트 재시도 실패: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "message": f"컴포넌트 재시도 실패: {str(e)}",
+                "data": {"error": str(e)}
+            }
+        )
+
+
+@router.get("/components/detailed")
+async def get_detailed_component_status() -> JSONResponse:
+    """상세한 컴포넌트 상태 조회"""
+    try:
+        from ..utils.component_manager import get_component_status, perform_component_health_checks
+        
+        component_report = get_component_status()
+        health_results = await perform_component_health_checks()
+        
+        # 상세 정보 결합
+        detailed_data = {
+            **component_report,
+            "health_checks": health_results,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        return JSONResponse(
+            content={
+                "success": True,
+                "message": "상세 컴포넌트 상태",
+                "data": detailed_data
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"상세 컴포넌트 상태 조회 실패: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "message": f"상세 컴포넌트 상태 조회 실패: {str(e)}",
+                "data": {"error": str(e)}
+            }
         )
 
 

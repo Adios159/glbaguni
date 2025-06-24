@@ -14,8 +14,8 @@ from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from .logging_config import get_logger
-from .validator import ValidationError
+from backend.utils.logging_config import get_logger
+from backend.utils.validator import ValidationError
 
 logger = get_logger("exception_handler")
 

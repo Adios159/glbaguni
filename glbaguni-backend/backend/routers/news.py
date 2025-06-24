@@ -147,7 +147,6 @@ async def search_news(
             status_code=500, detail=f"뉴스 검색 중 오류가 발생했습니다: {str(e)}"
         )
 
-
 @router.post("/extract-keywords")
 async def extract_keywords(request: KeywordExtractionRequest):
     """

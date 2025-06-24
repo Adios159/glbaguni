@@ -179,9 +179,8 @@ app.include_router(history_router)
 
 # === 개발 서버 실행 ===
 if __name__ == "__main__":
-    import uvicorn
-
-    logger.info("🚀 개발 서버 시작...")
-    uvicorn.run(
-        "main_refactored:app", host="0.0.0.0", port=8001, reload=True, log_level="info"
-    ) 
+    print("⚠️  경고: 이 파일은 리팩토링 버전입니다. 직접 실행하지 마세요.")
+    print("💡 대신 다음 명령어를 사용하세요:")
+    print("   uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload")
+    import sys
+    sys.exit(1) 

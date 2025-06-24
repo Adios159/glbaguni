@@ -1,11 +1,14 @@
 # Copy this file to .env and fill in your actual values
 
+# Security Configuration
+SECRET_KEY=your-super-secret-key-here-change-in-production
+
 # OpenAI Configuration
 OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_MODEL=gpt-4
 
 # SMTP Configuration (for Gmail example)
-SMTP_HOST=smtp.gmail.com
+SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=your_email@gmail.com
 SMTP_PASSWORD=your_app_password_here

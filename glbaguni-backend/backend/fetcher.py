@@ -21,10 +21,10 @@ try:
     if backend_dir not in sys.path:
         sys.path.insert(0, backend_dir)
     
-    from config import settings
-    from models import Article
-    from services.content_extractor import ContentExtractor
-    from services.rss_service import RSSService
+    from backend.config import settings
+    from backend.models import Article
+    from backend.services.content_extractor import ContentExtractor
+    from backend.services.rss_service import RSSService
 except ImportError:
     try:
         # Fallback for package import
@@ -35,7 +35,7 @@ except ImportError:
     except ImportError:
         # Basic imports for testing
         try:
-            from .models import Article
+            from backend.models import Article
         except ImportError:
             from models import Article
         # Mock settings for testing

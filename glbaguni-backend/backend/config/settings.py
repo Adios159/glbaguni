@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     reload: bool = Field(default=False, description="개발 모드 자동 재시작")
 
     # 보안 설정
-    secret_key: str = Field(..., description="애플리케이션 비밀 키")
+    secret_key: str = Field(default="glbaguni-default-secret-key-change-in-production", description="애플리케이션 비밀 키")
     api_key_header: str = Field(default="X-API-Key", description="API 키 헤더명")
     allowed_origins: List[str] = Field(default=["*"], description="CORS 허용 오리진")
 

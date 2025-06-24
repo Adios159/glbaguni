@@ -5,39 +5,23 @@ from typing import Any, Dict, List, Optional
 
 import openai
 
-# Handle relative imports for both module and script execution
+# Simple imports with fallback
 try:
-    import sys
-    import os
-    
-    # Add the backend directory to the path
-    backend_dir = os.path.dirname(os.path.abspath(__file__))
-    if backend_dir not in sys.path:
-        sys.path.insert(0, backend_dir)
-    
-    # Import settings instance from config.py (the original one)
-    from config import settings
-    from models import Article, ArticleSummary
+    from backend.models import Article, ArticleSummary
+    from backend.config import settings
 except ImportError:
     try:
-        # Fallback for package import
-        from backend.config import settings
-from backend.models import Article, ArticleSummary
+        from models import Article, ArticleSummary
+        from config import settings
     except ImportError:
-        # Use the new config structure
-        try:
-            from config.settings import get_settings
-            settings = get_settings()
-            from models import Article, ArticleSummary
-        except ImportError:
-            # Last resort - create mock settings
-            import os
-            class MockSettings:
-                OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-                OPENAI_MODEL = "gpt-3.5-turbo"
-                SUMMARIZATION_PROMPT = "Summarize the following text:"
-            settings = MockSettings()
-            from models import Article, ArticleSummary
+        from models import Article, ArticleSummary
+        # Create fallback settings
+        import os
+        class Settings:
+            OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+            OPENAI_MODEL = "gpt-3.5-turbo"
+            SUMMARIZATION_PROMPT = "Summarize the following text:"
+        settings = Settings()
 
 logger = logging.getLogger(__name__)
 

@@ -2,16 +2,316 @@
 # -*- coding: utf-8 -*-
 """
 보안 유틸리티 모듈
-사용자 입력 검증, Prompt Injection 방지, 데이터 sanitization
+사용자 입력 검증, Prompt Injection 방지, 데이터 sanitization, JWT 토큰 관리
 """
 
 import logging
 import re
 import unicodedata
+from datetime import datetime, timedelta
 from html import escape
 from typing import Any, Dict, List, Optional
 
+import jwt
+from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidTokenError
+from passlib.context import CryptContext
+from sqlalchemy.orm import Session
+
 logger = logging.getLogger(__name__)
+
+# 비밀번호 해싱 설정
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# JWT 설정
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION_DELTA = timedelta(minutes=30)  # 기본 30분 만료
+
+
+def get_secret_key() -> str:
+    """SECRET_KEY를 환경변수에서 가져오거나 설정에서 로드합니다."""
+    try:
+        from backend.config.settings import get_settings
+        settings = get_settings()
+        return settings.secret_key
+    except ImportError:
+        import os
+        return os.getenv("SECRET_KEY", "glbaguni-default-secret-key-change-in-production")
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """
+    JWT 액세스 토큰을 생성합니다.
+    
+    Args:
+        data: 토큰에 포함할 데이터 (user_id 등)
+        expires_delta: 토큰 만료 시간 (기본값: 30분)
+    
+    Returns:
+        str: JWT 토큰 문자열
+        
+    Example:
+        >>> token = create_access_token({"user_id": 123})
+        >>> print(token)  # eyJ0eXAiOiJKV1QiLCJhbGci...
+    """
+    to_encode = data.copy()
+    
+    # 만료 시간 설정
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + JWT_EXPIRATION_DELTA
+    
+    # 표준 JWT 클레임 추가
+    to_encode.update({
+        "exp": expire,
+        "iat": datetime.utcnow(),
+        "type": "access"
+    })
+    
+    try:
+        secret_key = get_secret_key()
+        encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=JWT_ALGORITHM)
+        logger.info(f"JWT 토큰 생성 성공 (만료: {expire})")
+        return encoded_jwt
+    except Exception as e:
+        logger.error(f"JWT 토큰 생성 실패: {e}")
+        raise ValueError(f"토큰 생성에 실패했습니다: {e}")
+
+
+def decode_access_token(token: str) -> Optional[int]:
+    """
+    JWT 액세스 토큰을 검증하고 user_id를 반환합니다.
+    
+    Args:
+        token: JWT 토큰 문자열
+        
+    Returns:
+        Optional[int]: 유효한 토큰이면 user_id, 그렇지 않으면 None
+        
+    Example:
+        >>> user_id = decode_access_token("eyJ0eXAiOiJKV1QiLCJhbGci...")
+        >>> print(user_id)  # 123 또는 None
+    """
+    if not token or not isinstance(token, str):
+        logger.warning("빈 토큰 또는 유효하지 않은 토큰 형식")
+        return None
+    
+    try:
+        secret_key = get_secret_key()
+        payload = jwt.decode(token, secret_key, algorithms=[JWT_ALGORITHM])
+        
+        # 토큰 타입 검증
+        if payload.get("type") != "access":
+            logger.warning("유효하지 않은 토큰 타입")
+            return None
+        
+        # user_id 추출
+        user_id = payload.get("user_id")
+        if user_id is None:
+            logger.warning("토큰에 user_id가 없음")
+            return None
+            
+        logger.info(f"JWT 토큰 검증 성공 (user_id: {user_id})")
+        return int(user_id)
+        
+    except ExpiredSignatureError:
+        logger.warning("만료된 JWT 토큰")
+        return None
+    except DecodeError:
+        logger.warning("JWT 토큰 디코딩 실패")
+        return None
+    except InvalidTokenError:
+        logger.warning("유효하지 않은 JWT 토큰")
+        return None
+    except (ValueError, TypeError) as e:
+        logger.warning(f"JWT 토큰 처리 중 오류: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"JWT 토큰 검증 중 예상치 못한 오류: {e}")
+        return None
+
+
+# 비밀번호 해싱 및 검증 함수
+def get_password_hash(password: str) -> str:
+    """
+    비밀번호를 bcrypt로 해싱합니다.
+    
+    Args:
+        password: 평문 비밀번호
+        
+    Returns:
+        str: 해싱된 비밀번호
+        
+    Example:
+        >>> hashed = get_password_hash("mypassword123")
+        >>> print(hashed)  # $2b$12$...
+    """
+    if not password or not isinstance(password, str):
+        raise ValueError("비밀번호는 비어있지 않은 문자열이어야 합니다.")
+    
+    try:
+        hashed_password = pwd_context.hash(password)
+        logger.info("비밀번호 해싱 완료")
+        return hashed_password
+    except Exception as e:
+        logger.error(f"비밀번호 해싱 실패: {e}")
+        raise ValueError(f"비밀번호 해싱에 실패했습니다: {e}")
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    평문 비밀번호와 해시된 비밀번호를 비교합니다.
+    
+    Args:
+        plain_password: 평문 비밀번호
+        hashed_password: 해시된 비밀번호
+        
+    Returns:
+        bool: 비밀번호가 일치하면 True, 아니면 False
+        
+    Example:
+        >>> is_valid = verify_password("mypassword123", hashed)
+        >>> print(is_valid)  # True 또는 False
+    """
+    if not plain_password or not hashed_password:
+        logger.warning("비밀번호 검증: 빈 값 입력")
+        return False
+    
+    try:
+        result = pwd_context.verify(plain_password, hashed_password)
+        logger.info(f"비밀번호 검증 결과: {'성공' if result else '실패'}")
+        return result
+    except Exception as e:
+        logger.error(f"비밀번호 검증 중 오류: {e}")
+        return False
+
+
+# 사용자 생성 및 인증 함수
+def create_user(db: Session, username: str, password: str) -> dict:
+    """
+    새로운 사용자를 생성합니다.
+    
+    Args:
+        db: SQLAlchemy 세션
+        username: 사용자명
+        password: 평문 비밀번호
+        
+    Returns:
+        dict: 생성된 사용자 정보 또는 오류 정보
+        
+    Example:
+        >>> result = create_user(db, "testuser", "password123")
+        >>> print(result)  # {"success": True, "user": {...}} 또는 {"success": False, "error": "..."}
+    """
+    try:
+        from backend.models import User
+    except ImportError:
+        logger.error("User 모델을 import할 수 없습니다.")
+        return {"success": False, "error": "시스템 오류"}
+    
+    # 입력 검증
+    if not username or not password:
+        return {"success": False, "error": "사용자명과 비밀번호는 필수입니다."}
+    
+    if len(username.strip()) < 3 or len(username.strip()) > 30:
+        return {"success": False, "error": "사용자명은 3~30자여야 합니다."}
+    
+    if len(password) < 6 or len(password) > 128:
+        return {"success": False, "error": "비밀번호는 6~128자여야 합니다."}
+    
+    username = username.strip()
+    
+    try:
+        # 사용자명 중복 확인
+        existing_user = db.query(User).filter(User.username == username).first()
+        if existing_user:
+            logger.warning(f"사용자명 중복: {username}")
+            return {"success": False, "error": "이미 존재하는 사용자명입니다."}
+        
+        # 비밀번호 해싱
+        hashed_password = get_password_hash(password)
+        
+        # 새 사용자 생성
+        new_user = User(
+            username=username,
+            hashed_password=hashed_password
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        logger.info(f"새 사용자 생성 완료: {username} (ID: {new_user.id})")
+        
+        return {
+            "success": True,
+            "user": {
+                "id": new_user.id,
+                "username": new_user.username,
+                "created_at": new_user.created_at
+            }
+        }
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"사용자 생성 중 오류: {e}")
+        return {"success": False, "error": "사용자 생성에 실패했습니다."}
+
+
+def authenticate_user(db: Session, username: str, password: str) -> dict:
+    """
+    사용자 인증을 수행합니다.
+    
+    Args:
+        db: SQLAlchemy 세션
+        username: 사용자명
+        password: 평문 비밀번호
+        
+    Returns:
+        dict: 인증 결과 및 사용자 정보
+        
+    Example:
+        >>> result = authenticate_user(db, "testuser", "password123")
+        >>> print(result)  # {"success": True, "user": {...}} 또는 {"success": False, "error": "..."}
+    """
+    try:
+        from backend.models import User
+    except ImportError:
+        logger.error("User 모델을 import할 수 없습니다.")
+        return {"success": False, "error": "시스템 오류"}
+    
+    # 입력 검증
+    if not username or not password:
+        return {"success": False, "error": "사용자명과 비밀번호를 입력하세요."}
+    
+    username = username.strip()
+    
+    try:
+        # 사용자 조회
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            logger.warning(f"존재하지 않는 사용자: {username}")
+            return {"success": False, "error": "사용자명 또는 비밀번호가 올바르지 않습니다."}
+        
+        # 비밀번호 검증
+        if not verify_password(password, str(user.hashed_password)):
+            logger.warning(f"비밀번호 불일치: {username}")
+            return {"success": False, "error": "사용자명 또는 비밀번호가 올바르지 않습니다."}
+        
+        logger.info(f"사용자 인증 성공: {username} (ID: {user.id})")
+        
+        return {
+            "success": True,
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "created_at": user.created_at
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"사용자 인증 중 오류: {e}")
+        return {"success": False, "error": "인증 처리 중 오류가 발생했습니다."}
 
 
 class SecurityValidator:

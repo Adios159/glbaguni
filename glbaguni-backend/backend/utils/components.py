@@ -38,24 +38,19 @@ async def initialize_components():
     try:
         # 모듈 import
         try:
-            # 절대 임포트로 변경
-            import os
-            import sys
-
-            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-            # Import settings instance from config.py (the original one with Settings instance)
-            import config
-            settings = config.settings
-            from database import init_database
-            from fetcher import ArticleFetcher
-            from history_service import HistoryService
-            from news_aggregator import NewsAggregator
-            from notifier import EmailNotifier
-            from summarizer import ArticleSummarizer
+            # backend.* 절대 경로로 import
+            from backend.config import settings
+            from backend.database import init_database
+            from backend.fetcher import ArticleFetcher
+            from backend.history_service import HistoryService
+            from backend.news_aggregator import NewsAggregator
+            from backend.notifier import EmailNotifier
+            from backend.summarizer import ArticleSummarizer
+            logger.info("✅ 모든 모듈 backend.* 경로로 import 성공")
         except ImportError as e:
-            # 백업 경로 추가
+            logger.warning(f"⚠️ backend.* import 실패, 상대경로 시도: {e}")
             try:
+                # 폴백: 상대경로 import
                 import os
                 import sys
 
@@ -65,18 +60,27 @@ async def initialize_components():
                 if backend_path not in sys.path:
                     sys.path.insert(0, backend_path)
 
-                # Import settings instance from config.py
-                import config
-                settings = config.settings
+                from config import settings
                 from database import init_database
                 from fetcher import ArticleFetcher
                 from history_service import HistoryService
                 from news_aggregator import NewsAggregator
                 from notifier import EmailNotifier
                 from summarizer import ArticleSummarizer
+                logger.info("✅ 상대경로로 import 성공")
             except ImportError as e:
-                logger.error(f"임포트 실패: {e}")
-                raise
+                logger.error(f"❌ 모든 import 실패: {e}")
+                # 필수 컴포넌트만 초기화
+                components.http_client = httpx.AsyncClient(
+                    timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=60.0),
+                    limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+                    headers={
+                        "User-Agent": "Glbaguni/3.0.0 (RSS Summarizer Bot)",
+                        "Accept": "application/json, text/plain, */*",
+                    },
+                )
+                logger.info("✅ HTTP 클라이언트만 초기화 완료")
+                return
 
         # HTTP 클라이언트 초기화
         components.http_client = httpx.AsyncClient(
@@ -105,20 +109,45 @@ async def initialize_components():
             logger.warning(f"⚠️ 데이터베이스 초기화 실패: {e}")
             # 데이터베이스 초기화 실패는 치명적이지 않으므로 계속 진행
 
-        # 컴포넌트 초기화
-        components.fetcher = ArticleFetcher()
-        components.summarizer = ArticleSummarizer()
-        components.history_service = HistoryService()
-
-        # NewsAggregator 초기화 (OPENAI_API_KEY 사용)
+        # 컴포넌트 초기화 (개별 try-catch로 실패 시 건너뛰기)
+        # ArticleFetcher 초기화
         try:
-            openai_key = settings.OPENAI_API_KEY
-        except AttributeError:
-            # Fallback to environment variable
+            components.fetcher = ArticleFetcher()
+            logger.info("✅ ArticleFetcher 초기화 완료")
+        except Exception as e:
+            logger.error(f"❌ ArticleFetcher 초기화 실패: {e}")
+            components.fetcher = None
+
+        # ArticleSummarizer 초기화
+        try:
+            components.summarizer = ArticleSummarizer()
+            logger.info("✅ ArticleSummarizer 초기화 완료")
+        except Exception as e:
+            logger.error(f"❌ ArticleSummarizer 초기화 실패: {e}")
+            components.summarizer = None
+
+        # HistoryService 초기화
+        try:
+            components.history_service = HistoryService()
+            logger.info("✅ HistoryService 초기화 완료")
+        except Exception as e:
+            logger.error(f"❌ HistoryService 초기화 실패: {e}")
+            components.history_service = None
+
+        # NewsAggregator 초기화 (OPENAI_API_KEY 사용) - 안전한 방식
+        try:
+            # 환경변수에서 직접 가져오기 (가장 안전한 방식)
             openai_key = os.getenv("OPENAI_API_KEY")
-        
-        if openai_key:
-            components.news_aggregator = NewsAggregator(openai_api_key=openai_key)
+            
+            if openai_key:
+                components.news_aggregator = NewsAggregator(openai_api_key=openai_key)
+                logger.info("✅ NewsAggregator 초기화 완료")
+            else:
+                logger.warning("⚠️ OPENAI_API_KEY 없음, NewsAggregator 건너뜀")
+                components.news_aggregator = None
+        except Exception as e:
+            logger.error(f"❌ NewsAggregator 초기화 실패: {e}")
+            components.news_aggregator = None
 
         # 이메일 컴포넌트 (선택적)
         try:
@@ -133,7 +162,11 @@ async def initialize_components():
 
     except Exception as e:
         logger.error(f"❌ 컴포넌트 초기화 실패: {str(e)}")
-        raise
+        # 전체 실패 시에도 HTTP 클라이언트는 최소한 초기화
+        if not components.http_client:
+            components.http_client = httpx.AsyncClient()
+            logger.info("✅ 최소한의 HTTP 클라이언트 초기화 완료")
+        # 예외를 다시 발생시키지 않고 부분적으로라도 서비스 제공
 
 
 async def cleanup_components():

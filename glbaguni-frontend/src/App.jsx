@@ -8,6 +8,7 @@ import SummarizePage from "./pages/SummarizePage";
 import HistoryPage from "./pages/HistoryPage";
 import RecommendationPage from "./pages/RecommendationPage";
 import ContactPage from "./pages/ContactPage";
+import LoginPage from "./pages/LoginPage";
 
 function App() {
   const { theme, toggleTheme } = useTheme();
@@ -25,6 +26,7 @@ function App() {
           <main>
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<LoginPage />} />
               <Route path="/summarize" element={<SummarizePage />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/recommendations" element={<RecommendationPage />} />

@@ -4,14 +4,26 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import List, Optional
+import os
 
 # Handle relative imports for both module and script execution
 try:
-    from backend.config import settings
     from backend.models import ArticleSummary, EmailNotification
+    from backend.config import settings
 except ImportError:
-    from config import settings
-    from models import ArticleSummary, EmailNotification
+    try:
+        from models import ArticleSummary, EmailNotification
+        from config import settings
+    except ImportError:
+        from models import ArticleSummary, EmailNotification
+        # Create fallback settings
+        class Settings:
+            SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+            SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+            SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
+            SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+            SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+        settings = Settings()
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +32,12 @@ class EmailNotifier:
     """Handles email notifications using SMTP (easily replaceable with Mailgun)."""
 
     def __init__(self):
-        self.smtp_host = settings.SMTP_HOST
-        self.smtp_port = settings.SMTP_PORT
-        self.smtp_username = settings.SMTP_USERNAME
-        self.smtp_password = settings.SMTP_PASSWORD
-        self.smtp_use_tls = settings.SMTP_USE_TLS
+        # 환경변수에서 직접 가져오기 (안전한 방식)
+        self.smtp_host = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+        self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        self.smtp_username = os.getenv("SMTP_USERNAME")
+        self.smtp_password = os.getenv("SMTP_PASSWORD")
+        self.smtp_use_tls = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
 
         # Log SMTP configuration for debugging
         logger.info("🔍 SMTP Configuration Debug:")
@@ -40,19 +53,27 @@ class EmailNotifier:
 
         if not self.smtp_username or not self.smtp_password:
             error_msg = "SMTP username and password are required"
-            logger.error(f"❌ {error_msg}")
-            logger.error(
+            logger.warning(f"⚠️ {error_msg}")
+            logger.warning(
                 "💡 Please check your .env file and ensure SMTP_USERNAME and SMTP_PASSWORD are set"
             )
-            logger.error("💡 For Gmail, you need to:")
-            logger.error("   1. Enable 2-Factor Authentication")
-            logger.error("   2. Generate an App Password")
-            logger.error("   3. Use the App Password as SMTP_PASSWORD")
-            raise ValueError(error_msg)
+            logger.warning("💡 For Gmail, you need to:")
+            logger.warning("   1. Enable 2-Factor Authentication")
+            logger.warning("   2. Generate an App Password")
+            logger.warning("   3. Use the App Password as SMTP_PASSWORD")
+            logger.warning("🔄 EmailNotifier가 비활성화됩니다 (서버는 계속 실행)")
+            # raise 대신 warning으로 변경하여 서버가 계속 실행되도록
+            self.smtp_username = ""
+            self.smtp_password = ""
 
     def send_email(self, notification: EmailNotification) -> bool:
         """Send an email notification."""
         try:
+            # SMTP 설정 검증
+            if not self.smtp_username or not self.smtp_password:
+                logger.error("SMTP 설정이 누락되어 이메일을 보낼 수 없습니다")
+                return False
+                
             # Create message
             msg = MIMEMultipart("alternative")
             msg["From"] = self.smtp_username
@@ -68,11 +89,11 @@ class EmailNotifier:
                 msg.attach(html_part)
 
             # Send email
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+            with smtplib.SMTP(self.smtp_host or "smtp.gmail.com", self.smtp_port) as server:
                 if self.smtp_use_tls:
                     server.starttls()
 
-                server.login(self.smtp_username, self.smtp_password)
+                server.login(self.smtp_username or "", self.smtp_password or "")
                 server.send_message(msg)
 
             logger.info(f"Email sent successfully to {notification.recipient}")

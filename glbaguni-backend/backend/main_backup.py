@@ -613,7 +613,8 @@ async def save_to_history(user_id: str, summaries: List[ArticleSummary], db: Ses
 # (히스토리, 추천, 통계 등의 엔드포인트들)
 
 if __name__ == "__main__":
-    import uvicorn
-
-    logger.info("🚀 FastAPI 서버를 직접 실행합니다...")
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True, log_level="info")
+    print("⚠️  경고: 이 파일은 백업용입니다. 직접 실행하지 마세요.")
+    print("💡 대신 다음 명령어를 사용하세요:")
+    print("   uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload")
+    import sys
+    sys.exit(1)

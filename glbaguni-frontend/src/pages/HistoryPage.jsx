@@ -10,11 +10,20 @@ const HistoryPage = () => {
   const [languageFilter, setLanguageFilter] = useState('');
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  const userId = localStorage.getItem('user_id');
+  
+  // 사용자 ID 가져오기 또는 생성
+  const getUserId = () => {
+    let userId = localStorage.getItem('user_id');
+    if (!userId) {
+      userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('user_id', userId);
+    }
+    return userId;
+  };
+  
+  const userId = getUserId();
 
   const fetchHistory = async () => {
-    if (!userId) return;
-    
     setLoading(true);
     try {
       const params = {
@@ -58,22 +67,7 @@ const HistoryPage = () => {
     return text.substring(0, maxLength) + '...';
   };
 
-  if (!userId) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
-              사용자 ID가 없습니다
-            </h2>
-            <p className="text-yellow-700 dark:text-yellow-300">
-              먼저 요약 서비스를 사용해주세요. 자동으로 사용자 ID가 생성됩니다.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // userId는 이제 항상 존재하므로 이 체크는 불필요
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">

@@ -30,6 +30,20 @@ except ImportError:
 logger = get_logger("validator")
 
 
+class ValidationError(Exception):
+    """커스텀 검증 오류 클래스"""
+    
+    def __init__(self, message: str, field: Optional[str] = None):
+        self.message = message
+        self.field = field
+        super().__init__(message)
+
+    def __str__(self):
+        if self.field:
+            return f"Validation error in field '{self.field}': {self.message}"
+        return f"Validation error: {self.message}"
+
+
 def validate_user_input(text: str, max_length: int = 5000) -> str:
     """사용자 입력 텍스트 검증 및 정화"""
     if not text or not text.strip():
