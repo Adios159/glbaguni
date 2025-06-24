@@ -187,53 +187,49 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 # 사용자 생성 및 인증 함수
-def create_user(db: Session, username: str, password: str) -> dict:
+def create_user(db: Session, email: str, password: str) -> dict:
     """
     새로운 사용자를 생성합니다.
     
     Args:
         db: SQLAlchemy 세션
-        username: 사용자명
+        email: 사용자 이메일
         password: 평문 비밀번호
         
     Returns:
         dict: 생성된 사용자 정보 또는 오류 정보
         
     Example:
-        >>> result = create_user(db, "testuser", "password123")
-        >>> print(result)  # {"success": True, "user": {...}} 또는 {"success": False, "error": "..."}
+        >>> result = create_user(db, "user@example.com", "password123")
+        >>> print(result["success"])  # True 또는 False
     """
-    try:
-        from backend.models import User
-    except ImportError:
-        logger.error("User 모델을 import할 수 없습니다.")
-        return {"success": False, "error": "시스템 오류"}
-    
-    # 입력 검증
-    if not username or not password:
-        return {"success": False, "error": "사용자명과 비밀번호는 필수입니다."}
-    
-    if len(username.strip()) < 3 or len(username.strip()) > 30:
-        return {"success": False, "error": "사용자명은 3~30자여야 합니다."}
-    
-    if len(password) < 6 or len(password) > 128:
-        return {"success": False, "error": "비밀번호는 6~128자여야 합니다."}
-    
-    username = username.strip()
+    if not email or not password:
+        logger.warning("사용자 생성: 필수 파라미터 누락")
+        return {
+            "success": False,
+            "message": "이메일과 비밀번호는 필수입니다.",
+            "user": None
+        }
     
     try:
-        # 사용자명 중복 확인
-        existing_user = db.query(User).filter(User.username == username).first()
+        from backend.models.models import User
+        
+        # 중복 이메일 확인
+        existing_user = db.query(User).filter(User.email == email.lower().strip()).first()
         if existing_user:
-            logger.warning(f"사용자명 중복: {username}")
-            return {"success": False, "error": "이미 존재하는 사용자명입니다."}
+            logger.warning(f"사용자 생성 실패: 이메일 중복 ({email})")
+            return {
+                "success": False,
+                "message": "이미 사용 중인 이메일입니다.",
+                "user": None
+            }
         
         # 비밀번호 해싱
         hashed_password = get_password_hash(password)
         
         # 새 사용자 생성
         new_user = User(
-            username=username,
+            email=email.lower().strip(),
             hashed_password=hashed_password
         )
         
@@ -241,77 +237,83 @@ def create_user(db: Session, username: str, password: str) -> dict:
         db.commit()
         db.refresh(new_user)
         
-        logger.info(f"새 사용자 생성 완료: {username} (ID: {new_user.id})")
-        
+        logger.info(f"새 사용자 생성 성공: {email}")
         return {
             "success": True,
-            "user": {
-                "id": new_user.id,
-                "username": new_user.username,
-                "created_at": new_user.created_at
-            }
+            "message": "사용자가 성공적으로 생성되었습니다.",
+            "user": {"id": new_user.id, "email": new_user.email}
         }
         
     except Exception as e:
         db.rollback()
         logger.error(f"사용자 생성 중 오류: {e}")
-        return {"success": False, "error": "사용자 생성에 실패했습니다."}
+        return {
+            "success": False,
+            "message": f"사용자 생성에 실패했습니다: {str(e)}",
+            "user": None
+        }
 
 
-def authenticate_user(db: Session, username: str, password: str) -> dict:
+def authenticate_user(db: Session, email: str, password: str) -> dict:
     """
     사용자 인증을 수행합니다.
     
     Args:
         db: SQLAlchemy 세션
-        username: 사용자명
+        email: 사용자 이메일
         password: 평문 비밀번호
         
     Returns:
         dict: 인증 결과 및 사용자 정보
         
     Example:
-        >>> result = authenticate_user(db, "testuser", "password123")
-        >>> print(result)  # {"success": True, "user": {...}} 또는 {"success": False, "error": "..."}
+        >>> result = authenticate_user(db, "user@example.com", "password123")
+        >>> print(result["success"])  # True 또는 False
     """
-    try:
-        from backend.models import User
-    except ImportError:
-        logger.error("User 모델을 import할 수 없습니다.")
-        return {"success": False, "error": "시스템 오류"}
-    
-    # 입력 검증
-    if not username or not password:
-        return {"success": False, "error": "사용자명과 비밀번호를 입력하세요."}
-    
-    username = username.strip()
+    if not email or not password:
+        logger.warning("사용자 인증: 필수 파라미터 누락")
+        return {
+            "success": False,
+            "message": "이메일과 비밀번호는 필수입니다.",
+            "user": None
+        }
     
     try:
+        from backend.models.models import User
+        
         # 사용자 조회
-        user = db.query(User).filter(User.username == username).first()
+        user = db.query(User).filter(User.email == email.lower().strip()).first()
         if not user:
-            logger.warning(f"존재하지 않는 사용자: {username}")
-            return {"success": False, "error": "사용자명 또는 비밀번호가 올바르지 않습니다."}
+            logger.warning(f"사용자 인증 실패: 존재하지 않는 이메일 ({email})")
+            return {
+                "success": False,
+                "message": "이메일 또는 비밀번호가 올바르지 않습니다.",
+                "user": None
+            }
         
         # 비밀번호 검증
-        if not verify_password(password, str(user.hashed_password)):
-            logger.warning(f"비밀번호 불일치: {username}")
-            return {"success": False, "error": "사용자명 또는 비밀번호가 올바르지 않습니다."}
+        if not verify_password(password, user.hashed_password):
+            logger.warning(f"사용자 인증 실패: 잘못된 비밀번호 ({email})")
+            return {
+                "success": False,
+                "message": "이메일 또는 비밀번호가 올바르지 않습니다.",
+                "user": None
+            }
         
-        logger.info(f"사용자 인증 성공: {username} (ID: {user.id})")
-        
+        logger.info(f"사용자 인증 성공: {email}")
         return {
             "success": True,
-            "user": {
-                "id": user.id,
-                "username": user.username,
-                "created_at": user.created_at
-            }
+            "message": "인증이 성공했습니다.",
+            "user": {"id": user.id, "email": user.email}
         }
         
     except Exception as e:
         logger.error(f"사용자 인증 중 오류: {e}")
-        return {"success": False, "error": "인증 처리 중 오류가 발생했습니다."}
+        return {
+            "success": False,
+            "message": f"인증 과정에서 오류가 발생했습니다: {str(e)}",
+            "user": None
+        }
 
 
 class SecurityValidator:

@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true); // true: 로그인, false: 회원가입
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: '',
     confirmPassword: ''
   });
@@ -30,18 +30,44 @@ const LoginPage = () => {
   };
 
   const validateForm = () => {
-    if (!formData.username || formData.username.length < 3) {
-      setError('사용자명은 3자 이상이어야 합니다.');
+    // 이메일 검증
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!formData.email || !emailRegex.test(formData.email)) {
+      setError('올바른 이메일 주소를 입력해주세요.');
       return false;
     }
-    if (!formData.password || formData.password.length < 6) {
-      setError('비밀번호는 6자 이상이어야 합니다.');
-      return false;
+    
+    if (!isLogin) {
+      // 회원가입 시에만 강화된 비밀번호 검증 적용
+      if (!formData.password || formData.password.length < 10) {
+        setError('비밀번호는 최소 10자 이상이어야 합니다.');
+        return false;
+      }
+      
+      // 영어 대문자 확인
+      if (!/[A-Z]/.test(formData.password)) {
+        setError('비밀번호에 영어 대문자가 1개 이상 포함되어야 합니다.');
+        return false;
+      }
+      
+      // 특수문자 확인
+      if (!/[!@#$%^&*(),.?":{}|<>]/.test(formData.password)) {
+        setError('비밀번호에 특수문자(!@#$%^&*(),.?\":{}|<>)가 1개 이상 포함되어야 합니다.');
+        return false;
+      }
+      
+      if (formData.password !== formData.confirmPassword) {
+        setError('비밀번호가 일치하지 않습니다.');
+        return false;
+      }
+    } else {
+      // 로그인 시에는 기본 검증만
+      if (!formData.password) {
+        setError('비밀번호를 입력해주세요.');
+        return false;
+      }
     }
-    if (!isLogin && formData.password !== formData.confirmPassword) {
-      setError('비밀번호가 일치하지 않습니다.');
-      return false;
-    }
+    
     return true;
   };
 
@@ -60,7 +86,7 @@ const LoginPage = () => {
       if (isLogin) {
         // 로그인 처리
         const loginData = new FormData();
-        loginData.append('username', formData.username);
+        loginData.append('username', formData.email); // OAuth2 표준에서는 username 필드 사용
         loginData.append('password', formData.password);
 
         const response = await axios.post(
@@ -89,7 +115,7 @@ const LoginPage = () => {
         const response = await axios.post(
           `${API_BASE_URL}/auth/register`,
           {
-            username: formData.username,
+            email: formData.email,
             password: formData.password
           },
           {
@@ -101,7 +127,7 @@ const LoginPage = () => {
 
         setSuccess('회원가입이 완료되었습니다! 로그인해주세요.');
         setIsLogin(true); // 회원가입 후 로그인 모드로 전환
-        setFormData({ username: formData.username, password: '', confirmPassword: '' });
+        setFormData({ email: formData.email, password: '', confirmPassword: '' });
       }
 
     } catch (err) {
@@ -122,7 +148,7 @@ const LoginPage = () => {
   const handleLogout = () => {
     setToken('');
     setUser(null);
-    setFormData({ username: '', password: '', confirmPassword: '' });
+    setFormData({ email: '', password: '', confirmPassword: '' });
     setSuccess('');
     setError('');
     localStorage.removeItem('access_token');
@@ -134,7 +160,7 @@ const LoginPage = () => {
     setIsLogin(!isLogin);
     setError('');
     setSuccess('');
-    setFormData({ username: '', password: '', confirmPassword: '' });
+    setFormData({ email: '', password: '', confirmPassword: '' });
   };
 
   return (
@@ -179,18 +205,18 @@ const LoginPage = () => {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  사용자명
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  이메일
                 </label>
                 <input
-                  type="text"
-                  id="username"
-                  name="username"
-                  value={formData.username}
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
                   onChange={handleInputChange}
                   required
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  placeholder="사용자명 (3자 이상)"
+                  placeholder="example@domain.com"
                 />
               </div>
 
@@ -206,8 +232,18 @@ const LoginPage = () => {
                   onChange={handleInputChange}
                   required
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  placeholder="비밀번호 (6자 이상)"
+                  placeholder="비밀번호 (10자 이상, 영어 대문자 포함, 특수문자 포함)"
                 />
+                {!isLogin && (
+                  <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                    <p className="font-medium mb-1">비밀번호 요구사항:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>최소 10자 이상</li>
+                      <li>영어 대문자 1개 이상</li>
+                      <li>특수문자 1개 이상 (!@#$%^&*(),.?\":{}|&lt;&gt;)</li>
+                    </ul>
+                  </div>
+                )}
               </div>
 
               {!isLogin && (
@@ -292,7 +328,7 @@ const LoginPage = () => {
                 로그인 성공!
               </h3>
               <p className="text-gray-600 dark:text-gray-400 mb-6">
-                환영합니다, <span className="font-semibold">{user?.username}</span>님!
+                환영합니다, <span className="font-semibold">{user?.email}</span>님!
               </p>
               
               <div className="space-y-4">

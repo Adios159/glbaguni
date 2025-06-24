@@ -35,7 +35,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    username = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String(128), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -298,32 +298,58 @@ class UserStatsResponse(BaseModel):
 class UserCreate(BaseModel):
     """Request model for user registration."""
 
-    username: str
+    email: str
     password: str
 
-    @field_validator("username")
+    @field_validator("email")
     @classmethod
-    def validate_username(cls, v):
-        """Validate username length and format."""
-        if not v or not v.strip():
-            raise ValueError("Username cannot be empty")
-        v = v.strip()
-        if len(v) < 3:
-            raise ValueError("Username must be at least 3 characters long")
-        if len(v) > 30:
-            raise ValueError("Username must be at most 30 characters long")
-        return v
+    def validate_email(cls, v):
+        """Validate email format and requirements"""
+        import re
+        
+        if not v:
+            raise ValueError("이메일은 필수입니다")
+        
+        # Email format validation
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, v):
+            raise ValueError("올바른 이메일 형식이 아닙니다")
+        
+        if len(v) < 5:
+            raise ValueError("이메일은 최소 5자 이상이어야 합니다")
+        
+        if len(v) > 254:
+            raise ValueError("이메일은 최대 254자까지 가능합니다")
+        
+        return v.lower().strip()  # Normalize email
 
     @field_validator("password")
     @classmethod
     def validate_password(cls, v):
-        """Validate password length."""
+        """Enhanced password validation: 10+ chars, uppercase, special char"""
+        import re
+        
         if not v:
-            raise ValueError("Password cannot be empty")
-        if len(v) < 6:
-            raise ValueError("Password must be at least 6 characters long")
+            raise ValueError("비밀번호는 필수입니다")
+        
+        if len(v) < 10:
+            raise ValueError("비밀번호는 최소 10자 이상이어야 합니다")
+        
         if len(v) > 128:
-            raise ValueError("Password must be at most 128 characters long")
+            raise ValueError("비밀번호는 최대 128자까지 가능합니다")
+        
+        # Check for uppercase letter
+        if not re.search(r'[A-Z]', v):
+            raise ValueError("비밀번호에 영어 대문자가 1개 이상 포함되어야 합니다")
+        
+        # Check for special character
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
+            raise ValueError("비밀번호에 특수문자(!@#$%^&*(),.?\":{}|<>)가 1개 이상 포함되어야 합니다")
+        
+        # Check for at least one letter or number (basic requirement)
+        if not re.search(r'[a-zA-Z0-9]', v):
+            raise ValueError("비밀번호에 영문자 또는 숫자가 포함되어야 합니다")
+        
         return v
 
 
@@ -331,7 +357,7 @@ class UserRead(BaseModel):
     """Response model for user data."""
 
     id: int
-    username: str
+    email: str
 
     class Config:
         from_attributes = True

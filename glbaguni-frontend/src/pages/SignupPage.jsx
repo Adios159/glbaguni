@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 const SignupPage = () => {
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: '',
     confirmPassword: ''
   });
@@ -24,18 +24,35 @@ const SignupPage = () => {
   };
 
   const validateForm = () => {
-    if (!formData.username || formData.username.length < 3) {
-      setError('사용자명은 3자 이상이어야 합니다.');
+    // 이메일 검증
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!formData.email || !emailRegex.test(formData.email)) {
+      setError('올바른 이메일 주소를 입력해주세요.');
       return false;
     }
-    if (!formData.password || formData.password.length < 6) {
-      setError('비밀번호는 6자 이상이어야 합니다.');
+    
+    if (!formData.password || formData.password.length < 10) {
+      setError('비밀번호는 최소 10자 이상이어야 합니다.');
       return false;
     }
+    
+    // 영어 대문자 확인
+    if (!/[A-Z]/.test(formData.password)) {
+      setError('비밀번호에 영어 대문자가 1개 이상 포함되어야 합니다.');
+      return false;
+    }
+    
+    // 특수문자 확인
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(formData.password)) {
+      setError('비밀번호에 특수문자(!@#$%^&*(),.?\":{}|<>)가 1개 이상 포함되어야 합니다.');
+      return false;
+    }
+    
     if (formData.password !== formData.confirmPassword) {
       setError('비밀번호가 일치하지 않습니다.');
       return false;
     }
+    
     return true;
   };
 
@@ -54,7 +71,7 @@ const SignupPage = () => {
       const response = await axios.post(
         `${API_BASE_URL}/auth/register`,
         {
-          username: formData.username,
+          email: formData.email,
           password: formData.password
         },
         {
@@ -65,7 +82,7 @@ const SignupPage = () => {
       );
 
       setSuccess('회원가입이 완료되었습니다! 이제 로그인할 수 있습니다.');
-      setFormData({ username: '', password: '', confirmPassword: '' });
+      setFormData({ email: '', password: '', confirmPassword: '' });
 
     } catch (err) {
       console.error('회원가입 오류:', err);
@@ -100,21 +117,21 @@ const SignupPage = () => {
             <>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    사용자명
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    이메일
                   </label>
                   <input
-                    type="text"
-                    id="username"
-                    name="username"
-                    value={formData.username}
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
                     onChange={handleInputChange}
                     required
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="사용자명 (3자 이상)"
+                    placeholder="example@domain.com"
                   />
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    영문, 숫자, 언더스코어(_)만 사용 가능
+                    유효한 이메일 주소를 입력해주세요
                   </p>
                 </div>
 
@@ -130,8 +147,16 @@ const SignupPage = () => {
                     onChange={handleInputChange}
                     required
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="비밀번호 (6자 이상)"
+                    placeholder="비밀번호 (10자 이상, 영어 대문자 포함)"
                   />
+                  <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                    <p className="font-medium mb-1">비밀번호 요구사항:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>최소 10자 이상</li>
+                      <li>영어 대문자 1개 이상</li>
+                      <li>특수문자 1개 이상 (!@#$%^&*(),.?\":{}|&lt;&gt;)</li>
+                    </ul>
+                  </div>
                 </div>
 
                 <div>

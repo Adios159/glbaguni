@@ -74,7 +74,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     새로운 사용자를 등록합니다.
     
     Args:
-        user_data: 사용자 생성 데이터 (username, password)
+        user_data: 사용자 생성 데이터 (email, password)
         db: 데이터베이스 세션
         
     Returns:
@@ -83,30 +83,30 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     Example:
         POST /auth/register
         {
-            "username": "testuser",
-            "password": "password123"
+            "email": "user@example.com",
+            "password": "StrongPass123!"
         }
     """
-    logger.info(f"회원가입 요청: username={user_data.username}")
+    logger.info(f"회원가입 요청: email={user_data.email}")
     
     # 사용자 생성 (내부적으로 SQLAlchemy filter 사용)
-    result = create_user(db, user_data.username, user_data.password)
+    result = create_user(db, user_data.email, user_data.password)
     
     if not result["success"]:
-        logger.warning(f"회원가입 실패: {result['error']}")
+        logger.warning(f"회원가입 실패: {result['message']}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=result["error"]
+            detail=result["message"]
         )
     
-    logger.info(f"회원가입 성공: username={user_data.username}, user_id={result['user']['id']}")
+    logger.info(f"회원가입 성공: email={user_data.email}, user_id={result['user']['id']}")
     
     return {
         "success": True,
         "message": "회원가입이 완료되었습니다.",
         "user": {
             "id": result["user"]["id"],
-            "username": result["user"]["username"]
+            "email": result["user"]["email"]
         }
     }
 
@@ -120,7 +120,7 @@ async def login(
     사용자 로그인을 처리하고 JWT 토큰을 반환합니다.
     
     Args:
-        form_data: OAuth2 표준 로그인 폼 (username, password)
+        form_data: OAuth2 표준 로그인 폼 (username을 email로 사용)
         db: 데이터베이스 세션
         
     Returns:
@@ -130,32 +130,34 @@ async def login(
         POST /auth/login
         Content-Type: application/x-www-form-urlencoded
         
-        username=testuser&password=password123
+        username=user@example.com&password=StrongPass123!
     """
-    logger.info(f"로그인 요청: username={form_data.username}")
+    # OAuth2PasswordRequestForm에서 username 필드를 email로 처리
+    email = form_data.username  # OAuth2 표준에서는 username 필드를 사용하지만 실제로는 email
+    logger.info(f"로그인 요청: email={email}")
     
     # 사용자 인증 (내부적으로 SQLAlchemy filter 사용)
-    auth_result = authenticate_user(db, form_data.username, form_data.password)
+    auth_result = authenticate_user(db, email, form_data.password)
     
     if not auth_result["success"]:
-        logger.warning(f"로그인 실패: username={form_data.username}, error={auth_result['error']}")
+        logger.warning(f"로그인 실패: email={email}, error={auth_result['message']}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=auth_result["error"],
+            detail=auth_result["message"],
             headers={"WWW-Authenticate": "Bearer"},
         )
     
     # JWT 토큰 생성
     access_token = create_access_token(data={"user_id": auth_result["user"]["id"]})
     
-    logger.info(f"로그인 성공: username={form_data.username}, user_id={auth_result['user']['id']}")
+    logger.info(f"로그인 성공: email={email}, user_id={auth_result['user']['id']}")
     
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user": {
             "id": auth_result["user"]["id"],
-            "username": auth_result["user"]["username"]
+            "email": auth_result["user"]["email"]
         }
     }
 
@@ -175,11 +177,11 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         GET /auth/me
         Authorization: Bearer <jwt_token>
     """
-    logger.info(f"사용자 정보 조회: user_id={current_user.id}, username={current_user.username}")
+    logger.info(f"사용자 정보 조회: user_id={current_user.id}, email={current_user.email}")
     
     return UserRead(
         id=current_user.id,
-        username=current_user.username
+        email=current_user.email
     )
 
 
