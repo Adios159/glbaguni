@@ -10,7 +10,8 @@ const Navbar = () => {
     { path: '/history', icon: '📖', label: 'My History' },
     { path: '/recommendations', icon: '🔥', label: 'Recommendations' },
     { path: '/contact', icon: '📬', label: 'Contact' },
-    { path: '/login', icon: '🔐', label: 'Login' }
+    { path: '/login', icon: '🔐', label: 'Login' },
+    { path: '/signup', icon: '✨', label: 'Sign Up' }
   ];
 
   const isActive = (path) => {
