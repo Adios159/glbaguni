@@ -16,6 +16,7 @@ import jwt
 from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidTokenError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -24,18 +25,48 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT 설정
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRATION_DELTA = timedelta(minutes=30)  # 기본 30분 만료
 
 
 def get_secret_key() -> str:
     """SECRET_KEY를 환경변수에서 가져오거나 설정에서 로드합니다."""
+    # 먼저 환경변수에서 확인
+    env_secret = os.getenv("SECRET_KEY")
+    if env_secret and env_secret != "glbaguni-default-secret-key-change-in-production":
+        return env_secret
+    
+    # 환경변수가 없거나 기본값인 경우, 설정에서 확인
     try:
-        from backend.config.settings import get_settings
+        from config.settings import get_settings
         settings = get_settings()
-        return settings.secret_key
-    except ImportError:
-        import os
-        return os.getenv("SECRET_KEY", "glbaguni-default-secret-key-change-in-production")
+        if settings.secret_key and settings.secret_key != "glbaguni-default-secret-key-change-in-production":
+            return settings.secret_key
+    except Exception:
+        pass
+    
+    # 보안 키가 없으면 예외 발생
+    raise ValueError(
+        "SECRET_KEY가 설정되지 않았습니다. "
+        "환경변수 SECRET_KEY를 설정하거나 .env 파일에 SECRET_KEY를 추가하세요. "
+        "예: SECRET_KEY=your-super-secret-key-here"
+    )
+
+
+def get_access_token_expire_minutes() -> int:
+    """환경변수에서 액세스 토큰 만료 시간을 가져옵니다."""
+    import os
+    try:
+        return int(os.getenv("ACCESS_EXPIRE_MIN", 30))
+    except (ValueError, TypeError):
+        return 30
+
+
+def get_refresh_token_expire_days() -> int:
+    """환경변수에서 리프레시 토큰 만료 시간을 가져옵니다."""
+    import os
+    try:
+        return int(os.getenv("REFRESH_EXPIRE_DAYS", 7))
+    except (ValueError, TypeError):
+        return 7
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -43,14 +74,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     JWT 액세스 토큰을 생성합니다.
     
     Args:
-        data: 토큰에 포함할 데이터 (user_id 등)
-        expires_delta: 토큰 만료 시간 (기본값: 30분)
+        data: 토큰에 포함할 데이터 (sub: user_id)
+        expires_delta: 토큰 만료 시간 (기본값: 환경변수 ACCESS_EXPIRE_MIN)
     
     Returns:
         str: JWT 토큰 문자열
         
     Example:
-        >>> token = create_access_token({"user_id": 123})
+        >>> token = create_access_token({"sub": "123"})
         >>> print(token)  # eyJ0eXAiOiJKV1QiLCJhbGci...
     """
     to_encode = data.copy()
@@ -59,23 +90,63 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + JWT_EXPIRATION_DELTA
+        expire_minutes = get_access_token_expire_minutes()
+        expire = datetime.utcnow() + timedelta(minutes=expire_minutes)
     
     # 표준 JWT 클레임 추가
     to_encode.update({
         "exp": expire,
-        "iat": datetime.utcnow(),
         "type": "access"
     })
     
     try:
         secret_key = get_secret_key()
         encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=JWT_ALGORITHM)
-        logger.info(f"JWT 토큰 생성 성공 (만료: {expire})")
+        logger.info(f"JWT 액세스 토큰 생성 성공 (만료: {expire})")
         return encoded_jwt
     except Exception as e:
-        logger.error(f"JWT 토큰 생성 실패: {e}")
-        raise ValueError(f"토큰 생성에 실패했습니다: {e}")
+        logger.error(f"JWT 액세스 토큰 생성 실패: {e}")
+        raise ValueError(f"액세스 토큰 생성에 실패했습니다: {e}")
+
+
+def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """
+    JWT 리프레시 토큰을 생성합니다.
+    
+    Args:
+        data: 토큰에 포함할 데이터 (sub: user_id)
+        expires_delta: 토큰 만료 시간 (기본값: 환경변수 REFRESH_EXPIRE_DAYS)
+    
+    Returns:
+        str: JWT 토큰 문자열
+        
+    Example:
+        >>> token = create_refresh_token({"sub": "123"})
+        >>> print(token)  # eyJ0eXAiOiJKV1QiLCJhbGci...
+    """
+    to_encode = data.copy()
+    
+    # 만료 시간 설정
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire_days = get_refresh_token_expire_days()
+        expire = datetime.utcnow() + timedelta(days=expire_days)
+    
+    # 표준 JWT 클레임 추가
+    to_encode.update({
+        "exp": expire,
+        "type": "refresh"
+    })
+    
+    try:
+        secret_key = get_secret_key()
+        encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=JWT_ALGORITHM)
+        logger.info(f"JWT 리프레시 토큰 생성 성공 (만료: {expire})")
+        return encoded_jwt
+    except Exception as e:
+        logger.error(f"JWT 리프레시 토큰 생성 실패: {e}")
+        raise ValueError(f"리프레시 토큰 생성에 실패했습니다: {e}")
 
 
 def decode_access_token(token: str) -> Optional[int]:
@@ -105,29 +176,82 @@ def decode_access_token(token: str) -> Optional[int]:
             logger.warning("유효하지 않은 토큰 타입")
             return None
         
-        # user_id 추출
-        user_id = payload.get("user_id")
-        if user_id is None:
-            logger.warning("토큰에 user_id가 없음")
+        # sub에서 user_id 추출
+        sub = payload.get("sub")
+        if sub is None:
+            logger.warning("토큰에 sub가 없음")
             return None
             
-        logger.info(f"JWT 토큰 검증 성공 (user_id: {user_id})")
-        return int(user_id)
+        logger.info(f"JWT 액세스 토큰 검증 성공 (user_id: {sub})")
+        return int(sub)
         
     except ExpiredSignatureError:
-        logger.warning("만료된 JWT 토큰")
+        logger.warning("만료된 JWT 액세스 토큰")
         return None
     except DecodeError:
-        logger.warning("JWT 토큰 디코딩 실패")
+        logger.warning("JWT 액세스 토큰 디코딩 실패")
         return None
     except InvalidTokenError:
-        logger.warning("유효하지 않은 JWT 토큰")
+        logger.warning("유효하지 않은 JWT 액세스 토큰")
         return None
     except (ValueError, TypeError) as e:
-        logger.warning(f"JWT 토큰 처리 중 오류: {e}")
+        logger.warning(f"JWT 액세스 토큰 처리 중 오류: {e}")
         return None
     except Exception as e:
-        logger.error(f"JWT 토큰 검증 중 예상치 못한 오류: {e}")
+        logger.error(f"JWT 액세스 토큰 검증 중 예상치 못한 오류: {e}")
+        return None
+
+
+def decode_refresh_token(token: str) -> Optional[int]:
+    """
+    JWT 리프레시 토큰을 검증하고 user_id를 반환합니다.
+    
+    Args:
+        token: JWT 토큰 문자열
+        
+    Returns:
+        Optional[int]: 유효한 토큰이면 user_id, 그렇지 않으면 None
+        
+    Example:
+        >>> user_id = decode_refresh_token("eyJ0eXAiOiJKV1QiLCJhbGci...")
+        >>> print(user_id)  # 123 또는 None
+    """
+    if not token or not isinstance(token, str):
+        logger.warning("빈 토큰 또는 유효하지 않은 토큰 형식")
+        return None
+    
+    try:
+        secret_key = get_secret_key()
+        payload = jwt.decode(token, secret_key, algorithms=[JWT_ALGORITHM])
+        
+        # 토큰 타입 검증
+        if payload.get("type") != "refresh":
+            logger.warning("유효하지 않은 토큰 타입")
+            return None
+        
+        # sub에서 user_id 추출
+        sub = payload.get("sub")
+        if sub is None:
+            logger.warning("토큰에 sub가 없음")
+            return None
+            
+        logger.info(f"JWT 리프레시 토큰 검증 성공 (user_id: {sub})")
+        return int(sub)
+        
+    except ExpiredSignatureError:
+        logger.warning("만료된 JWT 리프레시 토큰")
+        return None
+    except DecodeError:
+        logger.warning("JWT 리프레시 토큰 디코딩 실패")
+        return None
+    except InvalidTokenError:
+        logger.warning("유효하지 않은 JWT 리프레시 토큰")
+        return None
+    except (ValueError, TypeError) as e:
+        logger.warning(f"JWT 리프레시 토큰 처리 중 오류: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"JWT 리프레시 토큰 검증 중 예상치 못한 오류: {e}")
         return None
 
 

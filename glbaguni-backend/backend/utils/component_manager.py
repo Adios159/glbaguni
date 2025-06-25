@@ -284,38 +284,27 @@ component_manager = RobustComponentManager(max_retries=2, retry_delay=1.0)
 
 # === 헬스체크 함수들 ===
 async def check_fetcher_health(instance) -> bool:
-    """Fetcher 헬스체크 - 더 강건한 검증"""
+    """Fetcher 헬스체크 - ArticleFetcher 실제 메서드에 맞춤"""
     try:
-        # 1. 기본 속성 및 메서드 확인
-        if not hasattr(instance, 'fetch_content'):
-            logger.debug("❌ Fetcher: fetch_content 메서드 없음")
+        # 1. 실제 ArticleFetcher 메서드들 확인
+        required_methods = ['fetch_html_article', 'fetch_rss_articles', 'fetch_multiple_sources']
+        
+        for method_name in required_methods:
+            if not hasattr(instance, method_name):
+                logger.debug(f"❌ Fetcher: {method_name} 메서드 없음")
+                return False
+            
+            if not callable(getattr(instance, method_name)):
+                logger.debug(f"❌ Fetcher: {method_name}가 호출 가능하지 않음")
+                return False
+        
+        # 2. session 속성 확인 (HTTP 요청을 위해 필요)
+        if not hasattr(instance, 'session'):
+            logger.debug("❌ Fetcher: session 속성 없음")
             return False
         
-        if not callable(instance.fetch_content):
-            logger.debug("❌ Fetcher: fetch_content가 호출 가능하지 않음")
-            return False
-        
-        # 2. 간단한 테스트 URL로 실제 동작 확인 (타임아웃 적용)
-        try:
-            import asyncio
-            # 매우 간단한 테스트 - 너무 오래 걸리지 않도록 타임아웃 설정
-            test_task = asyncio.create_task(
-                asyncio.wait_for(
-                    instance.fetch_content("https://httpbin.org/get", max_length=100),
-                    timeout=3.0
-                )
-            )
-            await test_task
-            logger.debug("✅ Fetcher: 기본 동작 확인됨")
-            return True
-            
-        except asyncio.TimeoutError:
-            logger.debug("⚠️ Fetcher: 헬스체크 타임아웃 (하지만 정상으로 간주)")
-            return True  # 타임아웃은 정상으로 간주 (네트워크 이슈일 수 있음)
-            
-        except Exception as e:
-            logger.debug(f"⚠️ Fetcher: 헬스체크 중 오류 (하지만 정상으로 간주): {e}")
-            return True  # 네트워크 오류는 정상으로 간주
+        logger.debug("✅ Fetcher: 모든 필수 메서드 및 속성 확인됨")
+        return True
         
     except Exception as e:
         logger.debug(f"❌ Fetcher: 헬스체크 실패: {e}")

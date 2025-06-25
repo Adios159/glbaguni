@@ -8,7 +8,7 @@ const LoginForm = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-      const [token, setToken] = useState('');
+  const [token, setToken] = useState('');
   const [user, setUser] = useState(null);
 
   // API Base URL (환경에 따라 수정)
@@ -46,10 +46,10 @@ const LoginForm = () => {
 
       // 성공 응답 처리
       const { access_token, token_type, user: userData } = response.data;
-      
+
       setToken(access_token);
       setUser(userData);
-      
+
       // 토큰을 localStorage에 저장
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('token_type', token_type);
@@ -58,7 +58,7 @@ const LoginForm = () => {
 
     } catch (err) {
       console.error('로그인 오류:', err);
-      
+
       if (err.response) {
         setError(err.response.data.detail || '로그인에 실패했습니다.');
       } else if (err.request) {
@@ -98,6 +98,7 @@ const LoginForm = () => {
               value={formData.username}
               onChange={handleInputChange}
               required
+              autoComplete="username"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="사용자명을 입력하세요"
             />
@@ -114,6 +115,7 @@ const LoginForm = () => {
               value={formData.password}
               onChange={handleInputChange}
               required
+              autoComplete="current-password"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="비밀번호를 입력하세요"
             />
@@ -122,11 +124,10 @@ const LoginForm = () => {
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-2 px-4 rounded-md text-white font-medium ${
-              loading
+            className={`w-full py-2 px-4 rounded-md text-white font-medium ${loading
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500'
-            }`}
+              }`}
           >
             {loading ? '로그인 중...' : '로그인'}
           </button>

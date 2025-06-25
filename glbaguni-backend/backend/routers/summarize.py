@@ -23,7 +23,8 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 try:
-    from models import ArticleSummary, SummaryRequest, SummaryResponse  # type: ignore
+    from models import ArticleSummary, SummaryRequest, SummaryResponse, SummaryFeedbackRequest, SummaryFeedbackResponse, FeedbackStatsResponse  # type: ignore
+    from models.models import SummaryFeedback  # type: ignore
     from services.background_tasks import save_to_history, send_summary_email  # type: ignore
     from utils.executors import SafeExecutor  # type: ignore
     from utils.responses import ResponseBuilder  # type: ignore
@@ -31,14 +32,15 @@ try:
 except ImportError:
     try:
         # Fallback for package import
-        from ..models import ArticleSummary, SummaryRequest, SummaryResponse  # type: ignore
+        from ..models import ArticleSummary, SummaryRequest, SummaryResponse, SummaryFeedbackRequest, SummaryFeedbackResponse, FeedbackStatsResponse  # type: ignore
+        from ..models.models import SummaryFeedback  # type: ignore
         from ..services.background_tasks import save_to_history, send_summary_email  # type: ignore
         from ..utils.executors import SafeExecutor  # type: ignore
         from ..utils.responses import ResponseBuilder  # type: ignore
         from ..utils.validators import InputSanitizer  # type: ignore
     except ImportError:
         # Final fallback with minimal imports
-        from models import ArticleSummary, SummaryRequest, SummaryResponse  # type: ignore
+        from models import ArticleSummary, SummaryRequest, SummaryResponse, SummaryFeedbackRequest, SummaryFeedbackResponse, FeedbackStatsResponse  # type: ignore
         
         # Simple mock implementations for missing dependencies
         class SafeExecutor:  # type: ignore
@@ -244,6 +246,147 @@ def create_summarize_router(app_state, importer):
         except Exception as e:
             logger.error(f"❌ [{request_id}] 텍스트 요약 중 오류: {e}")
             raise HTTPException(500, "텍스트 요약 중 내부 오류가 발생했습니다")
+
+    @router.get("/status")
+    async def summarize_status():
+        """요약 서비스 상태 확인 API"""
+        return {"status": "요약 서비스가 정상 작동 중입니다 📝"}
+
+    @router.post("/feedback", response_model=SummaryFeedbackResponse)
+    async def submit_feedback(
+        feedback: SummaryFeedbackRequest,
+        db: Session = Depends(importer.services["get_db"]),
+    ):
+        """요약 결과에 대한 피드백 제출 API"""
+        logger = logging.getLogger("glbaguni")
+        
+        try:
+            # 입력 검증
+            user_id = feedback.user_id or "anonymous"
+            
+            # 새로운 피드백 생성
+            db_feedback = SummaryFeedback(
+                user_id=user_id,
+                history_item_id=feedback.history_item_id,
+                article_url=feedback.article_url,
+                article_title=feedback.article_title,
+                feedback_type=feedback.feedback_type,
+                rating=feedback.rating,
+                comment=feedback.comment,
+                summary_language=feedback.summary_language or "ko",
+            )
+            
+            db.add(db_feedback)
+            db.commit()
+            db.refresh(db_feedback)
+            
+            logger.info(f"📝 피드백 저장 완료: {feedback.feedback_type} (rating: {feedback.rating})")
+            
+            return SummaryFeedbackResponse(
+                success=True,
+                message="피드백이 성공적으로 저장되었습니다. 감사합니다!",
+                feedback_id=db_feedback.id
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ 피드백 저장 중 오류: {e}")
+            db.rollback()
+            raise HTTPException(500, "피드백 저장 중 오류가 발생했습니다")
+
+    @router.get("/feedback/stats", response_model=FeedbackStatsResponse)
+    async def get_feedback_stats(
+        db: Session = Depends(importer.services["get_db"]),
+        days: int = 30  # 최근 N일간의 통계
+    ):
+        """피드백 통계 조회 API"""
+        logger = logging.getLogger("glbaguni")
+        
+        try:
+            from datetime import datetime, timedelta
+            from sqlalchemy import func
+            
+            # 기간 설정
+            start_date = datetime.utcnow() - timedelta(days=days)
+            
+            # 전체 피드백 수
+            total_feedback = db.query(SummaryFeedback).filter(
+                SummaryFeedback.created_at >= start_date
+            ).count()
+            
+            if total_feedback == 0:
+                return FeedbackStatsResponse(
+                    success=True,
+                    total_feedback=0,
+                    positive_count=0,
+                    negative_count=0,
+                    average_rating=0.0,
+                    positive_percentage=0.0,
+                    recent_feedback=[],
+                    feedback_by_language={}
+                )
+            
+            # 긍정/부정 피드백 수
+            positive_count = db.query(SummaryFeedback).filter(
+                SummaryFeedback.created_at >= start_date,
+                SummaryFeedback.feedback_type == "positive"
+            ).count()
+            
+            negative_count = db.query(SummaryFeedback).filter(
+                SummaryFeedback.created_at >= start_date,
+                SummaryFeedback.feedback_type == "negative"
+            ).count()
+            
+            # 평균 평점
+            avg_rating_result = db.query(func.avg(SummaryFeedback.rating)).filter(
+                SummaryFeedback.created_at >= start_date
+            ).scalar()
+            average_rating = float(avg_rating_result) if avg_rating_result else 0.0
+            
+            # 긍정 비율
+            positive_percentage = (positive_count / total_feedback * 100) if total_feedback > 0 else 0.0
+            
+            # 최근 피드백 (최대 10개)
+            recent_feedback_items = db.query(SummaryFeedback).filter(
+                SummaryFeedback.created_at >= start_date
+            ).order_by(SummaryFeedback.created_at.desc()).limit(10).all()
+            
+            recent_feedback = [
+                {
+                    "article_title": item.article_title,
+                    "feedback_type": item.feedback_type,
+                    "rating": item.rating,
+                    "comment": item.comment,
+                    "created_at": item.created_at.isoformat(),
+                }
+                for item in recent_feedback_items
+            ]
+            
+            # 언어별 피드백 통계
+            language_stats = db.query(
+                SummaryFeedback.summary_language,
+                func.count(SummaryFeedback.id).label('count')
+            ).filter(
+                SummaryFeedback.created_at >= start_date
+            ).group_by(SummaryFeedback.summary_language).all()
+            
+            feedback_by_language = {lang: count for lang, count in language_stats}
+            
+            logger.info(f"📊 피드백 통계 조회 완료: 총 {total_feedback}개")
+            
+            return FeedbackStatsResponse(
+                success=True,
+                total_feedback=total_feedback,
+                positive_count=positive_count,
+                negative_count=negative_count,
+                average_rating=round(average_rating, 2),
+                positive_percentage=round(positive_percentage, 1),
+                recent_feedback=recent_feedback,
+                feedback_by_language=feedback_by_language
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ 피드백 통계 조회 중 오류: {e}")
+            raise HTTPException(500, "피드백 통계 조회 중 오류가 발생했습니다")
 
     return router
 

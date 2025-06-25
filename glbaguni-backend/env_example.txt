@@ -1,0 +1,73 @@
+# 글바구니 (Glbaguni) 환경변수 설정
+# 이 파일을 .env로 복사하고 실제 값으로 수정하세요
+
+# ===== 필수 보안 설정 =====
+# 반드시 변경해야 하는 중요한 설정들
+
+# JWT 토큰 암호화용 비밀키 (최소 32자 이상의 강력한 키 사용)
+SECRET_KEY=your-super-secret-key-here-change-this-immediately
+
+# OpenAI API 키 (https://platform.openai.com/api-keys 에서 발급)
+OPENAI_API_KEY=sk-your-openai-api-key-here
+
+# ===== 보안 설정 =====
+# 허용할 프론트엔드 도메인 (쉼표로 구분)
+ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+
+# ===== 서버 설정 =====
+# 서버 실행 환경
+ENVIRONMENT=production
+DEBUG=false
+
+# 서버 호스트 및 포트
+HOST=0.0.0.0
+PORT=8003
+
+# ===== 데이터베이스 설정 =====
+# SQLite 사용 시
+DATABASE_URL=sqlite:///glbaguni.db
+
+# PostgreSQL 사용 시 (선택사항)
+# DATABASE_URL=postgresql://username:password@localhost:5432/glbaguni
+
+# ===== AI 모델 설정 =====
+OPENAI_MODEL=gpt-3.5-turbo
+OPENAI_MAX_TOKENS=1000
+OPENAI_TEMPERATURE=0.7
+
+# ===== 보안 강화 설정 =====
+# Rate Limiting 설정
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_REQUESTS_PER_MINUTE=60
+RATE_LIMIT_REQUESTS_PER_HOUR=1000
+
+# IP 차단 설정
+IP_BLOCKER_ENABLED=true
+IP_BLOCKER_FAILED_AUTH_THRESHOLD=10
+IP_BLOCKER_SUSPICIOUS_REQUEST_COUNT=100
+
+# CAPTCHA 설정
+CAPTCHA_ENABLED=true
+RECAPTCHA_SITE_KEY=your-recaptcha-site-key
+RECAPTCHA_SECRET_KEY=your-recaptcha-secret-key
+
+# User-Agent 검증
+USER_AGENT_VALIDATION_ENABLED=true
+USER_AGENT_SECURITY_LEVEL=moderate
+
+# ===== Redis 설정 (선택사항) =====
+REDIS_ENABLED=false
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+# ===== 로깅 설정 =====
+LOG_LEVEL=INFO
+LOG_DIR=logs
+
+# ===== 이메일 설정 (선택사항) =====
+SMTP_SERVER=
+SMTP_PORT=587
+SMTP_USERNAME=
+SMTP_PASSWORD=
+SMTP_USE_TLS=true 

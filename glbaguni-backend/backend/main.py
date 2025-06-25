@@ -12,7 +12,7 @@ import time
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Query
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -45,6 +45,34 @@ try:
         validation_exception_handler,
     )
     from utils.middleware import logging_middleware
+    from utils.rate_limiter import (
+        RateLimitMiddleware, 
+        RateLimitConfig, 
+        create_rate_limit_error_handler,
+        rate_limit_middleware
+    )
+    from utils.user_agent_validator import (
+        UserAgentMiddleware,
+        UserAgentConfig,
+        SecurityLevel,
+        user_agent_middleware
+    )
+    from utils.captcha_validator import (
+        CaptchaRequest,
+        CaptchaResponse,
+        captcha_validator
+    )
+    from utils.ip_blocker import (
+        IPBlockerMiddleware,
+        IPBlockerConfig,
+        get_ip_blocker_middleware
+    )
+    from utils.request_logger import (
+        RequestLoggerMiddleware,
+        RequestLoggerConfig,
+        get_request_logger_middleware,
+        configure_request_logger
+    )
 except ImportError:
     from backend.utils.exception_handlers import (
         global_exception_handler,
@@ -52,6 +80,34 @@ except ImportError:
         validation_exception_handler,
     )
     from backend.utils.middleware import logging_middleware
+    from backend.utils.rate_limiter import (
+        RateLimitMiddleware, 
+        RateLimitConfig, 
+        create_rate_limit_error_handler,
+        rate_limit_middleware
+    )
+    from backend.utils.user_agent_validator import (
+        UserAgentMiddleware,
+        UserAgentConfig,
+        SecurityLevel,
+        user_agent_middleware
+    )
+    from backend.utils.captcha_validator import (
+        CaptchaRequest,
+        CaptchaResponse,
+        captcha_validator
+    )
+    from backend.utils.ip_blocker import (
+        IPBlockerMiddleware,
+        IPBlockerConfig,
+        get_ip_blocker_middleware
+    )
+    from backend.utils.request_logger import (
+        RequestLoggerMiddleware,
+        RequestLoggerConfig,
+        get_request_logger_middleware,
+        configure_request_logger
+    )
 
 
 # ===== 애플리케이션 라이프사이클 =====
@@ -71,6 +127,22 @@ async def lifespan(app: FastAPI):
 
         startup_time = time.time() - startup_start
         logger.info(f"🎉 서버 초기화 완료! (소요시간: {startup_time:.2f}초)")
+
+        # ===== 요청 로깅 미들웨어 등록 =====
+        try:
+            from config.settings import Settings
+            settings = Settings()
+            
+            configure_request_logger(
+                enabled=settings.REQUEST_LOGGER_ENABLED,
+                log_dir=settings.REQUEST_LOGGER_LOG_DIR,
+                log_formats=settings.REQUEST_LOGGER_LOG_FORMATS.split(','),
+                database_enabled=settings.REQUEST_LOGGER_DATABASE_ENABLED,
+                retention_days=settings.REQUEST_LOGGER_RETENTION_DAYS,
+                max_log_size_mb=settings.REQUEST_LOGGER_MAX_LOG_SIZE_MB
+            )
+        except Exception as e:
+            logger.warning(f"⚠️ 요청 로거 설정 적용 실패, 기본값 사용: {e}")
 
         yield
 
@@ -99,15 +171,51 @@ app = FastAPI(
 )
 
 # ===== CORS 설정 =====
+try:
+    from config.settings import get_settings
+    settings = get_settings()
+    cors_origins = settings.allowed_origins
+except Exception:
+    # 설정 로드 실패 시 안전한 기본값 사용
+    cors_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 프로덕션에서는 구체적 도메인으로 제한
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
 
-# ===== 미들웨어 등록 =====
+# ===== 요청 로깅 미들웨어 등록 =====
+app.middleware("http")(get_request_logger_middleware())
+
+# ===== IP 차단 미들웨어 설정 및 등록 =====
+from utils.ip_blocker import configure_ip_blocker
+try:
+    from config.settings import Settings
+    settings = Settings()
+    
+    configure_ip_blocker(
+        redis_enabled=settings.IP_BLOCKER_REDIS_ENABLED,
+        redis_host=settings.IP_BLOCKER_REDIS_HOST,
+        redis_port=settings.IP_BLOCKER_REDIS_PORT,
+        suspicious_request_count=settings.IP_BLOCKER_SUSPICIOUS_REQUEST_COUNT,
+        failed_auth_threshold=settings.IP_BLOCKER_FAILED_AUTH_THRESHOLD,
+        medium_threat_block_time=settings.IP_BLOCKER_MEDIUM_THREAT_BLOCK_TIME
+    )
+except Exception as e:
+    logger.warning(f"⚠️ IP 차단 설정 적용 실패, 기본값 사용: {e}")
+
+app.middleware("http")(get_ip_blocker_middleware())
+
+# ===== User-Agent 검증 미들웨어 등록 =====
+app.middleware("http")(user_agent_middleware)
+
+# ===== Rate Limiting 미들웨어 등록 =====
+app.middleware("http")(rate_limit_middleware)
+
+# ===== 기타 미들웨어 등록 =====
 app.middleware("http")(logging_middleware)
 
 # ===== 예외 핸들러 등록 =====
@@ -130,6 +238,11 @@ def register_routers():
         ("fetch", "데이터 수집", False),  # 선택적 라우터
         ("history_router", "히스토리", False),  # 선택적 라우터
         ("sources", "언론사 목록", False),  # 선택적 라우터
+        ("rate_limit_test", "Rate Limiting 테스트", False),  # 선택적 라우터
+        ("security_test", "보안 기능 테스트", False),  # 선택적 라우터
+        ("captcha", "CAPTCHA 및 봇 방지", False),  # 선택적 라우터
+        ("ip_management", "IP 차단 관리", False),  # 선택적 라우터
+        ("request_logs", "요청 로그 분석", False),  # 선택적 라우터
     ]
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -226,7 +339,6 @@ def register_routers():
 register_routers()
 
 # ===== 프론트엔드 호환을 위한 추가 엔드포인트 =====
-from fastapi import Request, Query
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -239,7 +351,12 @@ class NewsSearchRequest(BaseModel):
     user_id: Optional[str] = None
 
 @app.post("/news-search")
-async def news_search_compat(request: NewsSearchRequest, background_tasks: BackgroundTasks):
+async def news_search_compat(
+    request: NewsSearchRequest, 
+    background_tasks: BackgroundTasks,
+    captcha_data: CaptchaRequest = CaptchaRequest(),
+    http_request: Request = None
+):
     """
     프론트엔드 호환용 뉴스 검색 엔드포인트
     NewsAggregator를 직접 사용하여 실제 뉴스 검색 수행
@@ -249,6 +366,28 @@ async def news_search_compat(request: NewsSearchRequest, background_tasks: Backg
     
     try:
         logger.info(f"🔍 [{request_id}] 뉴스 검색 요청: '{request.query}'")
+        
+        # CAPTCHA 검증 (익명 사용자 또는 의심스러운 요청에 대해)
+        if http_request and (not request.user_id or captcha_data.recaptcha_token or captcha_data.math_challenge_id):
+            captcha_result = await captcha_validator.validate_request(
+                http_request, 
+                captcha_data, 
+                "/news-search"
+            )
+            
+            if not captcha_result.success:
+                logger.warning(f"뉴스 검색 CAPTCHA 검증 실패: {captcha_result.message}")
+                return {
+                    "success": False,
+                    "message": f"봇 방지 검증 실패: {captcha_result.message}",
+                    "articles": [],
+                    "extracted_keywords": [],
+                    "total_articles": 0,
+                    "request_id": request_id,
+                    "captcha_required": True
+                }
+            
+            logger.info(f"뉴스 검색 CAPTCHA 검증 성공: query={request.query}")
         
         # NewsAggregator를 직접 사용
         try:
@@ -460,7 +599,7 @@ async def log_recommendation_click(
 
 # ===== 애플리케이션 준비 완료 =====
 logger.info("🎉 글바구니 백엔드 애플리케이션이 준비되었습니다!")
-logger.info("💡 실행 방법: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload")
+logger.info("💡 실행 방법: uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload")
 
 # 참고: 직접 실행은 uvicorn을 통해서만 지원됩니다.
 # python -m backend.main 대신 다음 명령어를 사용하세요:

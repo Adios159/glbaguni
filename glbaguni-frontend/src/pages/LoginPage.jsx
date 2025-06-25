@@ -27,14 +27,14 @@ const LoginPage = () => {
 
   // 관심사 옵션들
   const interestOptions = [
-    "음악", "산책", "글쓰기", "독서", "영화", "운동", "요리", "여행", 
+    "음악", "산책", "글쓰기", "독서", "영화", "운동", "요리", "여행",
     "게임", "그림", "사진", "춤", "노래", "악기연주", "프로그래밍",
     "언어학습", "반려동물", "가드닝", "수공예", "명상"
   ];
 
   // 필요사항 옵션들
   const needOptions = [
-    "감정 안정", "스트레스 해소", "우울감 완화", "불안감 해소", 
+    "감정 안정", "스트레스 해소", "우울감 완화", "불안감 해소",
     "자신감 향상", "인간관계 개선", "집중력 향상", "수면 개선",
     "분노 조절", "트라우마 극복", "중독 극복", "기타"
   ];
@@ -76,12 +76,12 @@ const LoginPage = () => {
       setError('이메일을 입력해주세요.');
       return false;
     }
-    
+
     if (!formData.password) {
       setError('비밀번호를 입력해주세요.');
       return false;
     }
-    
+
     return true;
   };
 
@@ -109,12 +109,12 @@ const LoginPage = () => {
       const birthYear = parseInt(formData.birth_year);
       const currentYear = new Date().getFullYear();
       const age = currentYear - birthYear;
-      
+
       if (birthYear < 1900 || birthYear > currentYear) {
         setError(`출생년도는 1900년부터 ${currentYear}년까지 입력 가능합니다.`);
         return false;
       }
-      
+
       if (age < 14) {
         setError('만 14세 이상만 가입 가능합니다.');
         return false;
@@ -184,11 +184,11 @@ const LoginPage = () => {
         );
 
         setSuccess('회원가입이 완료되었습니다! 이제 로그인할 수 있습니다.');
-        setFormData({ 
+        setFormData({
           email: '',
           password: '',
-          username: '', 
-          confirmPassword: '', 
+          username: '',
+          confirmPassword: '',
           nickname: '',
           birth_year: '',
           gender: '',
@@ -196,7 +196,7 @@ const LoginPage = () => {
           need: ''
         });
         setIsLogin(true); // 회원가입 후 로그인 모드로 전환
-        
+
       } else {
         // 로그인 로직
         if (!validateLoginForm()) {
@@ -219,13 +219,13 @@ const LoginPage = () => {
         );
 
         const { access_token, user: userData } = response.data;
-        
+
         localStorage.setItem('access_token', access_token);
         setToken(access_token);
         setUser(userData);
-        
+
         setSuccess('로그인 성공! 홈페이지로 이동합니다...');
-        
+
         setTimeout(() => {
           navigate('/');
         }, 1500);
@@ -247,11 +247,11 @@ const LoginPage = () => {
     localStorage.removeItem('access_token');
     setToken('');
     setUser(null);
-    setFormData({ 
+    setFormData({
       email: '',
       password: '',
-      username: '', 
-      confirmPassword: '', 
+      username: '',
+      confirmPassword: '',
       nickname: '',
       birth_year: '',
       gender: '',
@@ -266,11 +266,11 @@ const LoginPage = () => {
     setIsLogin(!isLogin);
     setError('');
     setSuccess('');
-    setFormData({ 
+    setFormData({
       email: '',
       password: '',
-      username: '', 
-      confirmPassword: '', 
+      username: '',
+      confirmPassword: '',
       nickname: '',
       birth_year: '',
       gender: '',
@@ -353,6 +353,7 @@ const LoginPage = () => {
                 value={formData.email}
                 onChange={handleInputChange}
                 required
+                autoComplete="email"
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                 placeholder="example@domain.com"
               />
@@ -376,6 +377,7 @@ const LoginPage = () => {
                   value={formData.username}
                   onChange={handleInputChange}
                   required
+                  autoComplete="username"
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                   placeholder="영문, 숫자, 언더스코어만 사용"
                 />
@@ -399,6 +401,7 @@ const LoginPage = () => {
                     name="nickname"
                     value={formData.nickname}
                     onChange={handleInputChange}
+                    autoComplete="nickname"
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                     placeholder="표시될 이름 (선택사항)"
                   />
@@ -417,6 +420,7 @@ const LoginPage = () => {
                     onChange={handleInputChange}
                     min="1900"
                     max={new Date().getFullYear()}
+                    autoComplete="bday-year"
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                     placeholder="예: 1990"
                   />
@@ -432,6 +436,7 @@ const LoginPage = () => {
                     name="gender"
                     value={formData.gender}
                     onChange={handleInputChange}
+                    autoComplete="sex"
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                   >
                     <option value="">선택하지 않음</option>
@@ -447,10 +452,11 @@ const LoginPage = () => {
                     관심사 (최대 10개)
                   </label>
                   <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                    {interestOptions.map((interest) => (
-                      <label key={interest} className="flex items-center text-xs">
+                    {interestOptions.map((interest, index) => (
+                      <label key={interest} htmlFor={`interest-${index}`} className="flex items-center text-xs">
                         <input
                           type="checkbox"
+                          id={`interest-${index}`}
                           checked={formData.interests.includes(interest)}
                           onChange={() => handleInterestChange(interest)}
                           className="rounded border-gray-300 text-green-600 shadow-sm focus:border-green-500 focus:ring focus:ring-green-500 focus:ring-opacity-50"
@@ -474,6 +480,7 @@ const LoginPage = () => {
                     name="need"
                     value={formData.need}
                     onChange={handleInputChange}
+                    autoComplete="off"
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                   >
                     <option value="">선택하지 않음</option>
@@ -497,6 +504,7 @@ const LoginPage = () => {
                 value={formData.password}
                 onChange={handleInputChange}
                 required
+                autoComplete={isLogin ? "current-password" : "new-password"}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                 placeholder={isLogin ? "비밀번호" : "10자 이상, 대문자+특수문자 포함"}
               />
@@ -506,7 +514,7 @@ const LoginPage = () => {
                   <ul className="list-disc list-inside space-y-1">
                     <li>최소 10자 이상</li>
                     <li>영어 대문자 1개 이상</li>
-                    <li>특수문자 1개 이상 (!@#$%^&*(),.?\":{}|&lt;&gt;)</li>
+                    <li>특수문자 1개 이상 (!@#$%^&*(),.?\":{ }|&lt;&gt;)</li>
                   </ul>
                 </div>
               )}
@@ -525,6 +533,7 @@ const LoginPage = () => {
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
                   required
+                  autoComplete="new-password"
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                   placeholder="비밀번호 다시 입력"
                 />
@@ -549,8 +558,8 @@ const LoginPage = () => {
                 onClick={toggleMode}
                 className="text-sm text-green-600 hover:text-green-500 dark:text-green-400 dark:hover:text-green-300"
               >
-                {isLogin 
-                  ? '계정이 없으신가요? 회원가입하기' 
+                {isLogin
+                  ? '계정이 없으신가요? 회원가입하기'
                   : '이미 계정이 있으신가요? 로그인하기'
                 }
               </button>

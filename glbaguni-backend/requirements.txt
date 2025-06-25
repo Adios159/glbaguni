@@ -23,6 +23,17 @@ python-multipart==0.0.6
 PyJWT>=2.8.0
 passlib[bcrypt]>=1.7.4
 
+# ===== Rate Limiting =====
+slowapi>=0.1.9
+redis>=5.0.0
+
+# ===== CAPTCHA & Bot Protection =====
+captcha>=0.5.0
+
+# ===== IP Blocking System =====
+# IP address validation and network calculations (built into Python 3.3+)
+# No additional packages needed - using built-in ipaddress module
+
 # ===== News & Content Processing =====
 lxml==4.9.3
 

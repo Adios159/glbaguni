@@ -22,7 +22,7 @@ const SignupPage = () => {
 
   // 관심사 옵션들
   const interestOptions = [
-    "음악", "산책", "글쓰기", "독서", "영화", "운동", "요리", "여행", 
+    "음악", "산책", "글쓰기", "독서", "영화", "운동", "요리", "여행",
     "게임", "그림", "사진", "춤", "노래", "악기연주", "프로그래밍",
     "언어학습", "반려동물", "가드닝", "수공예", "명상"
   ];
@@ -85,12 +85,12 @@ const SignupPage = () => {
       const birthYear = parseInt(formData.birth_year);
       const currentYear = new Date().getFullYear();
       const age = currentYear - birthYear;
-      
+
       if (birthYear < 1900 || birthYear > currentYear) {
         setError(`출생년도는 1900년부터 ${currentYear}년까지 입력 가능합니다.`);
         return false;
       }
-      
+
       if (age < 14) {
         setError('만 14세 이상만 가입 가능합니다.');
         return false;
@@ -156,7 +156,7 @@ const SignupPage = () => {
       );
 
       setSuccess('회원가입이 완료되었습니다! 이제 로그인할 수 있습니다.');
-      
+
       // 폼 초기화
       setFormData({
         username: '',
@@ -198,22 +198,21 @@ const SignupPage = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* 오류 메시지 */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* 오류/성공 메시지 */}
             {error && (
               <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-200 px-4 py-3 rounded">
                 {error}
               </div>
             )}
 
-            {/* 성공 메시지 */}
             {success && (
               <div className="bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 text-green-600 dark:text-green-200 px-4 py-3 rounded">
                 {success}
               </div>
             )}
 
-            {/* 사용자명 (필수) */}
+            {/* 사용자명 */}
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 사용자명 *
@@ -225,6 +224,7 @@ const SignupPage = () => {
                 value={formData.username}
                 onChange={handleInputChange}
                 required
+                autoComplete="username"
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                 placeholder="영문, 숫자, 언더스코어만 사용"
               />
@@ -233,7 +233,7 @@ const SignupPage = () => {
               </p>
             </div>
 
-            {/* 이메일 (필수) */}
+            {/* 이메일 */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 이메일 *
@@ -245,15 +245,13 @@ const SignupPage = () => {
                 value={formData.email}
                 onChange={handleInputChange}
                 required
+                autoComplete="email"
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                 placeholder="example@domain.com"
               />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                로그인시 이메일로도 로그인 가능합니다
-              </p>
             </div>
 
-            {/* 비밀번호 (필수) */}
+            {/* 비밀번호 */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 비밀번호 *
@@ -265,6 +263,7 @@ const SignupPage = () => {
                 value={formData.password}
                 onChange={handleInputChange}
                 required
+                autoComplete="new-password"
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                 placeholder="10자 이상, 대문자+특수문자 포함"
               />
@@ -273,12 +272,12 @@ const SignupPage = () => {
                 <ul className="list-disc list-inside space-y-1">
                   <li>최소 10자 이상</li>
                   <li>영어 대문자 1개 이상</li>
-                  <li>특수문자 1개 이상 (!@#$%^&*(),.?\":{}|&lt;&gt;)</li>
+                  <li>특수문자 1개 이상</li>
                 </ul>
               </div>
             </div>
 
-            {/* 비밀번호 확인 (필수) */}
+            {/* 비밀번호 확인 */}
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 비밀번호 확인 *
@@ -290,12 +289,13 @@ const SignupPage = () => {
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
                 required
+                autoComplete="new-password"
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                 placeholder="비밀번호 다시 입력"
               />
             </div>
 
-            {/* 출생년도 (선택) */}
+            {/* 출생년도 (선택사항) */}
             <div>
               <label htmlFor="birth_year" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 출생년도
@@ -308,15 +308,16 @@ const SignupPage = () => {
                 onChange={handleInputChange}
                 min="1900"
                 max={new Date().getFullYear()}
+                autoComplete="bday-year"
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
                 placeholder="예: 1990"
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                만 14세 이상만 가입 가능
+                만 14세 이상만 가입 가능합니다 (선택사항)
               </p>
             </div>
 
-            {/* 성별 (선택) */}
+            {/* 성별 (선택사항) */}
             <div>
               <label htmlFor="gender" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 성별
@@ -326,6 +327,7 @@ const SignupPage = () => {
                 name="gender"
                 value={formData.gender}
                 onChange={handleInputChange}
+                autoComplete="sex"
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="">선택하지 않음</option>
@@ -335,25 +337,26 @@ const SignupPage = () => {
               </select>
             </div>
 
-            {/* 관심사 (선택) */}
+            {/* 관심사 (선택사항) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 관심사 (최대 10개)
               </label>
-              <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                {interestOptions.map((interest) => (
-                  <label key={interest} className="flex items-center">
+              <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                {interestOptions.map((interest, index) => (
+                  <label key={interest} htmlFor={`interest-${index}`} className="flex items-center text-xs">
                     <input
                       type="checkbox"
+                      id={`interest-${index}`}
                       checked={formData.interests.includes(interest)}
                       onChange={() => handleInterestChange(interest)}
                       className="rounded border-gray-300 text-green-600 shadow-sm focus:border-green-500 focus:ring focus:ring-green-500 focus:ring-opacity-50"
                     />
-                    <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">{interest}</span>
+                    <span className="ml-2 text-gray-700 dark:text-gray-300">{interest}</span>
                   </label>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 선택한 관심사: {formData.interests.length}/10
               </p>
             </div>

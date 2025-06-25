@@ -70,6 +70,26 @@ class UserHistory(Base):
     recommendations = relationship("RecommendationLog", back_populates="history_item")
 
 
+class SummaryFeedback(Base):
+    """SQLAlchemy model for summary feedback."""
+
+    __tablename__ = "summary_feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True)  # UUID for user identification
+    history_item_id = Column(Integer, ForeignKey("user_history.id"), nullable=True)
+    article_url = Column(String, index=True)  # For standalone summaries without history
+    article_title = Column(String)
+    feedback_type = Column(String)  # "positive" or "negative"
+    rating = Column(Integer)  # 1-5 scale (1=👎, 5=👍)
+    comment = Column(Text, nullable=True)  # Optional user comment
+    summary_language = Column(String)  # Language of the summary that was rated
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationship with history
+    history_item = relationship("UserHistory", backref="feedback_items")
+
+
 class RecommendationLog(Base):
     """SQLAlchemy model for recommendation tracking."""
 
@@ -446,3 +466,54 @@ class UserRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# Feedback Models
+class SummaryFeedbackRequest(BaseModel):
+    """Request model for summary feedback."""
+    
+    user_id: Optional[str] = None
+    history_item_id: Optional[int] = None
+    article_url: Optional[str] = None
+    article_title: str
+    feedback_type: str  # "positive" or "negative"
+    rating: int  # 1-5 scale
+    comment: Optional[str] = None
+    summary_language: Optional[str] = "ko"
+    
+    @field_validator("feedback_type")
+    @classmethod
+    def validate_feedback_type(cls, v):
+        """Validate feedback type."""
+        if v not in ["positive", "negative"]:
+            raise ValueError("Feedback type must be 'positive' or 'negative'")
+        return v
+    
+    @field_validator("rating")
+    @classmethod
+    def validate_rating(cls, v):
+        """Validate rating scale."""
+        if v < 1 or v > 5:
+            raise ValueError("Rating must be between 1 and 5")
+        return v
+
+
+class SummaryFeedbackResponse(BaseModel):
+    """Response model for summary feedback."""
+    
+    success: bool
+    message: str
+    feedback_id: Optional[int] = None
+
+
+class FeedbackStatsResponse(BaseModel):
+    """Response model for feedback statistics."""
+    
+    success: bool
+    total_feedback: int
+    positive_count: int
+    negative_count: int
+    average_rating: float
+    positive_percentage: float
+    recent_feedback: List[dict]
+    feedback_by_language: dict

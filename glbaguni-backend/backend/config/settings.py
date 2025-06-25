@@ -40,13 +40,16 @@ class Settings(BaseSettings):
 
     # 서버 설정
     host: str = Field(default="0.0.0.0", description="서버 호스트")
-    port: int = Field(default=8000, description="서버 포트")
+    port: int = Field(default=8003, description="서버 포트")
     reload: bool = Field(default=False, description="개발 모드 자동 재시작")
 
     # 보안 설정
     secret_key: str = Field(default="glbaguni-default-secret-key-change-in-production", description="애플리케이션 비밀 키")
     api_key_header: str = Field(default="X-API-Key", description="API 키 헤더명")
-    allowed_origins: List[str] = Field(default=["*"], description="CORS 허용 오리진")
+    allowed_origins: List[str] = Field(
+        default=["http://localhost:3000", "http://127.0.0.1:3000"],
+        description="CORS 허용 오리진"
+    )
 
     # 외부 API 설정
     openai_api_key: str = Field(..., description="OpenAI API 키")
@@ -80,6 +83,44 @@ class Settings(BaseSettings):
     cache_ttl: int = Field(default=3600, description="캐시 TTL (초)")
     cache_max_size: int = Field(default=1000, description="캐시 최대 크기")
 
+    # Rate Limiting 설정
+    rate_limit_enabled: bool = Field(default=True, description="Rate Limiting 활성화")
+    rate_limit_requests_per_minute: int = Field(default=60, description="분당 허용 요청 수")
+    rate_limit_requests_per_hour: int = Field(default=1000, description="시간당 허용 요청 수")
+    rate_limit_requests_per_day: int = Field(default=10000, description="일일 허용 요청 수")
+    rate_limit_window_size: int = Field(default=60, description="Rate Limit 윈도우 크기 (초)")
+    
+    # User-Agent 검증 설정
+    user_agent_validation_enabled: bool = Field(default=True, description="User-Agent 검증 활성화")
+    user_agent_security_level: str = Field(default="moderate", description="보안 레벨 (permissive/moderate/strict/lockdown)")
+    user_agent_block_message: str = Field(
+        default="요청이 차단되었습니다. 올바른 클라이언트를 사용해주세요.", 
+        description="차단 시 표시할 메시지"
+    )
+    
+    # CAPTCHA 설정
+    captcha_enabled: bool = Field(default=True, description="CAPTCHA 기능 활성화")
+    captcha_protection_level: str = Field(default="medium", description="CAPTCHA 보호 레벨")
+    recaptcha_site_key: Optional[str] = Field(default=None, description="Google reCAPTCHA 사이트 키")
+    recaptcha_secret_key: Optional[str] = Field(default=None, description="Google reCAPTCHA 비밀 키")
+    recaptcha_version: str = Field(default="v2", description="reCAPTCHA 버전 (v2/v3)")
+    recaptcha_threshold: float = Field(default=0.5, description="reCAPTCHA v3 스코어 임계값")
+    
+    # 봇 방지 설정
+    simple_math_enabled: bool = Field(default=True, description="간단한 수학 문제 활성화")
+    logic_check_enabled: bool = Field(default=True, description="로직 체크 활성화")
+    honeypot_enabled: bool = Field(default=True, description="허니팟 필드 활성화")
+    max_captcha_failures: int = Field(default=5, description="CAPTCHA 최대 실패 횟수")
+    captcha_lockout_minutes: int = Field(default=30, description="CAPTCHA 실패 시 잠금 시간(분)")
+    
+    # Redis 설정 (Rate Limiting 및 캐싱용)
+    redis_enabled: bool = Field(default=False, description="Redis 사용 여부")
+    redis_host: str = Field(default="localhost", description="Redis 호스트")
+    redis_port: int = Field(default=6379, description="Redis 포트")
+    redis_db: int = Field(default=0, description="Redis 데이터베이스 번호")
+    redis_password: Optional[str] = Field(default=None, description="Redis 비밀번호")
+    redis_max_connections: int = Field(default=10, description="Redis 최대 연결 수")
+
     # 이메일 설정 (선택사항)
     smtp_server: Optional[str] = Field(default=None, description="SMTP 서버")
     smtp_port: Optional[int] = Field(default=587, description="SMTP 포트")
@@ -95,21 +136,71 @@ class Settings(BaseSettings):
         default=["txt", "json", "csv"], description="허용된 업로드 파일 확장자"
     )
 
+    # ===== IP 차단 시스템 설정 =====
+    # IP 차단 기능 활성화
+    IP_BLOCKER_ENABLED: bool = Field(default=True, description="IP 차단 기능 활성화")
+
+    # Redis 연결 설정
+    IP_BLOCKER_REDIS_ENABLED: bool = Field(default=False, description="Redis 사용 여부")
+    IP_BLOCKER_REDIS_HOST: str = Field(default="localhost", description="Redis 호스트")
+    IP_BLOCKER_REDIS_PORT: int = Field(default=6379, description="Redis 포트")
+    IP_BLOCKER_REDIS_DB: int = Field(default=1, description="Redis 데이터베이스 번호")
+    IP_BLOCKER_REDIS_PASSWORD: Optional[str] = Field(default=None, description="Redis 비밀번호")
+
+    # 패턴 감지 설정
+    IP_BLOCKER_ANALYSIS_WINDOW_MINUTES: int = Field(default=15, description="패턴 감지 분석 윈도우 (분)")
+    IP_BLOCKER_SUSPICIOUS_REQUEST_COUNT: int = Field(default=100, description="의심 요청 수")
+    IP_BLOCKER_RAPID_REQUEST_THRESHOLD: int = Field(default=20, description="급증 요청 임계값")
+
+    # 차단 임계값
+    IP_BLOCKER_FAILED_AUTH_THRESHOLD: int = Field(default=10, description="인증 실패 임계값")
+    IP_BLOCKER_CAPTCHA_FAILURE_THRESHOLD: int = Field(default=5, description="CAPTCHA 실패 임계값")
+    IP_BLOCKER_ENDPOINT_SCAN_THRESHOLD: int = Field(default=20, description="엔드포인트 스캔 임계값")
+    IP_BLOCKER_DIFFERENT_UA_THRESHOLD: int = Field(default=10, description="다른 User-Agent 임계값")
+
+    # 차단 시간 (초)
+    IP_BLOCKER_LOW_THREAT_BLOCK_TIME: int = Field(default=900, description="낮은 위험 차단 시간 (초)")
+    IP_BLOCKER_MEDIUM_THREAT_BLOCK_TIME: int = Field(default=3600, description="중간 위험 차단 시간 (초)")
+    IP_BLOCKER_HIGH_THREAT_BLOCK_TIME: int = Field(default=7200, description="높은 위험 차단 시간 (초)")
+    IP_BLOCKER_CRITICAL_THREAT_BLOCK_TIME: int = Field(default=86400, description="심각한 위험 차단 시간 (초)")
+
+    # 화이트리스트 IP (쉼표로 구분)
+    IP_BLOCKER_WHITELIST_IPS: str = Field(default="127.0.0.1,::1,localhost", description="화이트리스트 IP")
+
+    # ===== 요청 로깅 시스템 설정 =====
+    # 요청 로깅 기능 활성화
+    REQUEST_LOGGER_ENABLED: bool = Field(default=True, description="요청 로깅 기능 활성화")
+    
+    # 로그 저장 설정
+    REQUEST_LOGGER_LOG_DIR: str = Field(default="logs/requests", description="로그 저장 디렉토리")
+    REQUEST_LOGGER_LOG_FORMATS: str = Field(default="json,csv", description="로그 형식 (쉼표로 구분)")
+    REQUEST_LOGGER_MAX_LOG_SIZE_MB: int = Field(default=100, description="최대 로그 파일 크기 (MB)")
+    REQUEST_LOGGER_MAX_LOG_FILES: int = Field(default=30, description="최대 로그 파일 수")
+    REQUEST_LOGGER_RETENTION_DAYS: int = Field(default=30, description="로그 보존 기간 (일)")
+    
+    # 데이터베이스 저장 설정
+    REQUEST_LOGGER_DATABASE_ENABLED: bool = Field(default=False, description="데이터베이스 저장 활성화")
+    REQUEST_LOGGER_DATABASE_PATH: str = Field(default="logs/requests.db", description="데이터베이스 파일 경로")
+    
+    # 제외할 경로 (쉼표로 구분)
+    REQUEST_LOGGER_EXCLUDE_PATHS: str = Field(
+        default="/docs,/redoc,/openapi.json,/static/,/favicon.ico,/health,/metrics",
+        description="로깅에서 제외할 경로"
+    )
+    
+    # 추가 로깅 옵션
+    REQUEST_LOGGER_INCLUDE_REQUEST_BODY: bool = Field(default=False, description="요청 본문 포함")
+    REQUEST_LOGGER_INCLUDE_RESPONSE_BODY: bool = Field(default=False, description="응답 본문 포함")
+    REQUEST_LOGGER_COMPRESS_OLD_LOGS: bool = Field(default=True, description="오래된 로그 압축")
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "ignore"  # 추가 필드 무시
 
         # 환경 변수 접두사
         env_prefix = ""
-
-        # 필드별 환경 변수 매핑
-        fields = {
-            "openai_api_key": {"env": "OPENAI_API_KEY"},
-            "secret_key": {"env": "SECRET_KEY"},
-            "database_url": {"env": "DATABASE_URL"},
-            "smtp_password": {"env": "SMTP_PASSWORD"},
-        }
 
     # 검증자들
     @validator("environment")
@@ -155,6 +246,22 @@ class Settings(BaseSettings):
     def validate_max_tokens(cls, v):
         if v <= 0:
             raise ValueError("openai_max_tokens must be positive")
+        return v
+
+    @validator("allowed_origins")
+    def validate_cors_origins(cls, v):
+        """CORS 허용 오리진 검증"""
+        if "*" in v:
+            logger.warning("⚠️  CORS에서 모든 도메인(*)을 허용하고 있습니다. 보안상 위험할 수 있습니다.")
+        return v
+
+    @validator("secret_key")
+    def validate_secret_key(cls, v):
+        """비밀키 보안 검증"""
+        if v == "glbaguni-default-secret-key-change-in-production":
+            logger.warning("⚠️  기본 SECRET_KEY를 사용하고 있습니다. 프로덕션에서는 반드시 변경하세요!")
+        elif len(v) < 32:
+            logger.warning("⚠️  SECRET_KEY가 너무 짧습니다. 최소 32자 이상 권장합니다.")
         return v
 
     # 속성 접근자들
@@ -244,55 +351,39 @@ def load_env_file() -> bool:
 
 
 def validate_required_env_vars(settings: Settings) -> None:
-    """
-    필수 환경 변수 검증
-
-    Args:
-        settings: 설정 객체
-
-    Raises:
-        SystemExit: 필수 환경 변수가 누락된 경우
-    """
-
+    """필수 환경변수가 설정되었는지 검증"""
     missing_vars = []
-
-    # 필수 변수 목록
-    required_checks = [
-        (
-            "OPENAI_API_KEY",
-            settings.openai_api_key,
-            "OpenAI API 키가 설정되지 않았습니다",
-        ),
-        (
-            "SECRET_KEY",
-            settings.secret_key,
-            "애플리케이션 비밀 키가 설정되지 않았습니다",
-        ),
-    ]
-
-    for var_name, var_value, error_msg in required_checks:
-        if not var_value or var_value == "your-secret-key-here":
-            missing_vars.append(f"❌ {var_name}: {error_msg}")
-
-    # OpenAI API 키 형식 검증
-    if settings.openai_api_key and not settings.openai_api_key.startswith("sk-"):
-        missing_vars.append(
-            "❌ OPENAI_API_KEY: OpenAI API 키 형식이 올바르지 않습니다 (sk-로 시작해야 함)"
-        )
-
+    
+    # OpenAI API 키 검증
+    if not settings.openai_api_key:
+        missing_vars.append("OPENAI_API_KEY")
+    
+    # 보안 키 검증 - 기본값 사용 시 에러
+    if (not settings.secret_key or 
+        settings.secret_key == "glbaguni-default-secret-key-change-in-production"):
+        missing_vars.append("SECRET_KEY")
+        logger.error("❌ SECRET_KEY가 기본값으로 설정되어 있습니다. 보안상 위험합니다!")
+    
     if missing_vars:
-        logger.error("🚨 필수 환경 변수가 누락되었습니다:")
-        for missing in missing_vars:
-            logger.error(missing)
+        error_msg = f"""
+❌ 필수 환경변수가 설정되지 않았습니다:
 
-        logger.error("\n📝 해결 방법:")
-        logger.error("1. .env 파일을 생성하세요")
-        logger.error("2. 다음 변수들을 설정하세요:")
-        logger.error("   OPENAI_API_KEY=your-openai-api-key")
-        logger.error("   SECRET_KEY=your-secret-key")
-        logger.error("3. 애플리케이션을 다시 시작하세요")
+누락된 변수: {', '.join(missing_vars)}
 
-        sys.exit(1)
+.env 파일을 생성하고 다음 환경변수들을 설정하세요:
+
+   OPENAI_API_KEY=your-openai-api-key
+   SECRET_KEY=your-super-secret-key-here
+
+현재 설정값:
+   OPENAI_API_KEY={settings.openai_api_key if settings.openai_api_key else "❌ 설정되지 않음"}
+   SECRET_KEY={"❌ 기본값 또는 설정되지 않음" if not settings.secret_key or settings.secret_key == "glbaguni-default-secret-key-change-in-production" else "✅ 설정됨"}
+
+보안상의 이유로 서버를 시작할 수 없습니다.
+        """.strip()
+        
+        logger.error(error_msg)
+        raise ValueError(error_msg)
 
     logger.info("✅ 모든 필수 환경 변수가 설정되었습니다")
 
@@ -337,7 +428,7 @@ def get_settings() -> Settings:
         create_directories(settings)
 
         # 설정 정보 로깅
-        logger.info(f"📱 애플리케이션: {settings.app_name} v{settings.app_version}")
+        logger.info(f"애플리케이션: {settings.app_name} v{settings.app_version}")
         logger.info(f"🌍 환경: {settings.environment}")
         logger.info(f"🖥️ 서버: {settings.host}:{settings.port}")
         logger.info(f"🤖 OpenAI 모델: {settings.openai_model}")

@@ -77,43 +77,49 @@ const ContactPage = () => {
             <div>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="contact-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     이름 *
                   </label>
                   <input
                     type="text"
+                    id="contact-name"
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
                     required
+                    autoComplete="name"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                     placeholder="홍길동"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="contact-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     이메일 주소 *
                   </label>
                   <input
                     type="email"
+                    id="contact-email"
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
                     required
+                    autoComplete="email"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                     placeholder="your@email.com"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="contact-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     문의 유형 *
                   </label>
                   <select
+                    id="contact-type"
                     name="type"
                     value={formData.type}
                     onChange={handleInputChange}
+                    autoComplete="off"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   >
                     {contactTypes.map(type => (
@@ -125,15 +131,17 @@ const ContactPage = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="contact-message" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     메시지 *
                   </label>
                   <textarea
+                    id="contact-message"
                     name="message"
                     value={formData.message}
                     onChange={handleInputChange}
                     required
                     rows="6"
+                    autoComplete="off"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                     placeholder="자세한 내용을 작성해주세요..."
                   />
@@ -187,7 +195,7 @@ const ContactPage = () => {
                       AI 요약의 정확도 향상을 위해 지속적으로 개선하고 있습니다. 구체적인 오류 내용을 알려주시면 더욱 도움이 됩니다.
                     </p>
                   </details>
-                  
+
                   <details className="cursor-pointer">
                     <summary className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">
                       📱 모바일 앱은 언제 출시되나요?
@@ -196,7 +204,7 @@ const ContactPage = () => {
                       현재 웹 서비스에 집중하고 있으며, 모바일 앱은 향후 계획에 포함되어 있습니다.
                     </p>
                   </details>
-                  
+
                   <details className="cursor-pointer">
                     <summary className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">
                       💰 유료 플랜이 있나요?
