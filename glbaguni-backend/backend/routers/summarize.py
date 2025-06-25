@@ -23,52 +23,46 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 try:
-    from models import ArticleSummary, SummaryRequest, SummaryResponse, SummaryFeedbackRequest, SummaryFeedbackResponse, FeedbackStatsResponse  # type: ignore
-    from models.models import SummaryFeedback  # type: ignore
-    from services.background_tasks import save_to_history, send_summary_email  # type: ignore
-    from utils.executors import SafeExecutor  # type: ignore
-    from utils.responses import ResponseBuilder  # type: ignore
-    from utils.validators import InputSanitizer  # type: ignore
-except ImportError:
-    try:
-        # Fallback for package import
-        from ..models import ArticleSummary, SummaryRequest, SummaryResponse, SummaryFeedbackRequest, SummaryFeedbackResponse, FeedbackStatsResponse  # type: ignore
-        from ..models.models import SummaryFeedback  # type: ignore
-        from ..services.background_tasks import save_to_history, send_summary_email  # type: ignore
-        from ..utils.executors import SafeExecutor  # type: ignore
-        from ..utils.responses import ResponseBuilder  # type: ignore
-        from ..utils.validators import InputSanitizer  # type: ignore
-    except ImportError:
-        # Final fallback with minimal imports
-        from models import ArticleSummary, SummaryRequest, SummaryResponse, SummaryFeedbackRequest, SummaryFeedbackResponse, FeedbackStatsResponse  # type: ignore
-        
-        # Simple mock implementations for missing dependencies
-        class SafeExecutor:  # type: ignore
-            @staticmethod
-            async def safe_call(func, *args, **kwargs):  # type: ignore
-                if callable(func):
-                    try:
-                        result = func(*args, **kwargs)
-                        return await result if hasattr(result, '__await__') else result
-                    except Exception:
-                        return None
+    from models import (
+        ArticleSummary, 
+        SummaryRequest, 
+        SummaryResponse, 
+        SummaryFeedbackRequest, 
+        SummaryFeedbackResponse, 
+        FeedbackStatsResponse
+    )
+    from models.models import SummaryFeedback
+    from services.background_tasks import save_to_history, send_summary_email
+    from utils.executors import SafeExecutor
+    from utils.responses import ResponseBuilder
+    from utils.validators import InputSanitizer
+except ImportError as e:
+    print(f"Import error in summarize.py: {e}")
+    # 간단한 fallback 구현
+    class SafeExecutor:
+        @staticmethod
+        async def safe_call(func, *args, **kwargs):
+            try:
+                result = func(*args, **kwargs)
+                return await result if hasattr(result, '__await__') else result
+            except Exception:
                 return None
-        
-        class ResponseBuilder:  # type: ignore
-            @staticmethod
-            def success(data=None, message=""):  # type: ignore
-                return {"success": True, "data": data, "message": message}
-        
-        class InputSanitizer:  # type: ignore
-            @staticmethod
-            def sanitize_text(text, max_length, field_name):  # type: ignore
-                return str(text)[:max_length] if text else ""
-        
-        async def save_to_history(*args, **kwargs):  # type: ignore
-            pass
-        
-        async def send_summary_email(*args, **kwargs):  # type: ignore
-            pass
+    
+    class ResponseBuilder:
+        @staticmethod
+        def success(data=None, message=""):
+            return {"success": True, "data": data, "message": message}
+    
+    class InputSanitizer:
+        @staticmethod
+        def sanitize_text(text, max_length, field_name):
+            return str(text)[:max_length] if text else ""
+    
+    async def save_to_history(*args, **kwargs):
+        pass
+    
+    async def send_summary_email(*args, **kwargs):
+        pass
 
 
 def create_summarize_router(app_state, importer):

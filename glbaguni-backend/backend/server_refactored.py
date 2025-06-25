@@ -1093,4 +1093,4 @@ if __name__ == "__main__":
     import uvicorn
 
     logger.info("🚀 서버 직접 실행")
-    uvicorn.run("server_refactored:app", host="0.0.0.0", port=8003, reload=False)
+    uvicorn.run("server_refactored:app", host="0.0.0.0", port=8000, reload=False)

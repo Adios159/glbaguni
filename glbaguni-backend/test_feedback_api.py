@@ -9,7 +9,7 @@ import json
 import uuid
 
 # API Base URL
-API_BASE = "http://localhost:8003"
+API_BASE = "http://localhost:8000"
 
 def test_feedback_submission():
     """피드백 제출 테스트"""

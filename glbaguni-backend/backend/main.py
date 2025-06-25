@@ -603,7 +603,7 @@ async def log_recommendation_click(
 
 # ===== 애플리케이션 준비 완료 =====
 logger.info("🎉 글바구니 백엔드 애플리케이션이 준비되었습니다!")
-logger.info("💡 실행 방법: uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload")
+logger.info("💡 실행 방법: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload")
 
 # 참고: 직접 실행은 uvicorn을 통해서만 지원됩니다.
 # python -m backend.main 대신 다음 명령어를 사용하세요:

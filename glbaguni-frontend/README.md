@@ -204,7 +204,7 @@ const { isValid, errors, validate } = useFormValidation(rules);
 백엔드 서버 URL을 환경 변수로 설정:
 
 ```bash
-VITE_API_URL=http://localhost:8003
+VITE_API_URL=http://localhost:8000
 ```
 
 ## 🐛 문제 해결

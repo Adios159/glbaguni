@@ -9,8 +9,8 @@
 ### 1. 포트 충돌 문제
 **문제:** 백엔드와 프론트엔드가 서로 다른 포트에서 실행되어 연결 실패
 **해결책:**
-- 백엔드는 **8003 포트** 사용 권장
-- 프론트엔드 `.env.local` 파일에 `VITE_API_BASE=http://127.0.0.1:8003` 설정
+- 백엔드는 **8000 포트** 사용 권장
+- 프론트엔드 `.env.local` 파일에 `VITE_API_BASE=http://127.0.0.1:8000` 설정
 - 포트 변경 시 두 설정을 모두 동기화
 
 ### 2. Import 에러
@@ -103,19 +103,19 @@ python problem_prevention.py
 ### 2. 백엔드 실행
 ```bash
 cd glbaguni-backend
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### 3. 프론트엔드 실행
 ```bash
 cd glbaguni-frontend
 # 환경변수 파일이 없다면 생성
-echo "VITE_API_BASE=http://127.0.0.1:8003" > .env.local
+echo "VITE_API_BASE=http://127.0.0.1:8000" > .env.local
 npm run dev
 ```
 
 ### 4. 동작 확인
-- 백엔드 헬스체크: http://localhost:8003/health
+- 백엔드 헬스체크: http://localhost:8000/health
 - 프론트엔드: http://localhost:5173 (또는 Vite 할당 포트)
 
 ## 🛠️ 문제 발생 시 대처법
@@ -123,10 +123,10 @@ npm run dev
 ### 1. 포트 충돌
 ```bash
 # 다른 포트로 백엔드 실행
-python -m uvicorn backend.main:app --port 8003 --reload
+python -m uvicorn backend.main:app --port 8000 --reload
 
 # 프론트엔드 환경변수 수정
-echo "VITE_API_BASE=http://127.0.0.1:8003" > .env.local
+echo "VITE_API_BASE=http://127.0.0.1:8000" > .env.local
 ```
 
 ### 2. Import 에러
@@ -189,7 +189,7 @@ grep ERROR logs/glbaguni.log
 ### 개발 모드 활성화
 ```bash
 # 디버그 모드로 실행
-python -m uvicorn backend.main:app --port 8003 --reload --log-level debug
+python -m uvicorn backend.main:app --port 8000 --reload --log-level debug
 ```
 
 ## 🎯 결론

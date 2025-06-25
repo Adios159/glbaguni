@@ -14,6 +14,7 @@ from .models import (
     UserHistory,
     RecommendationLog,
     UserPreferences,
+    SummaryFeedback,
     # Pydantic Models
     Article,
     ArticleSummary,
@@ -27,6 +28,10 @@ from .models import (
     RecommendationItem,
     RecommendationResponse,
     UserStatsResponse,
+    # Feedback Models
+    SummaryFeedbackRequest,
+    SummaryFeedbackResponse,
+    FeedbackStatsResponse,
     # User Authentication Schemas
     UserCreate,
     UserRead,
@@ -50,11 +55,16 @@ __all__ = [
     "UserHistory",
     "RecommendationLog", 
     "UserPreferences",
+    "SummaryFeedback",
     # Additional Pydantic models from local models module
     "ArticleSummary",
     "EmailNotification",
     "HistoryItem",
     "RecommendationItem",
+    # Feedback models
+    "SummaryFeedbackRequest",
+    "SummaryFeedbackResponse", 
+    "FeedbackStatsResponse",
     # User Authentication Schemas
     "UserCreate",
     "UserRead",

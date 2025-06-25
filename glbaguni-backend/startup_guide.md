@@ -25,11 +25,11 @@ for var in required:
 
 ### 2. 백엔드 서버 실행
 ```bash
-# 권장 명령어 (포트 8003 사용)
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload
+# 권장 명령어 (포트 8000 사용)
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
-# 또는 다른 포트 사용
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload
+# 또는 간단한 실행
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### 3. 프론트엔드 서버 실행 (새 터미널)
@@ -37,14 +37,14 @@ python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload
 cd ../glbaguni-frontend
 
 # 환경변수 설정 (백엔드 포트에 맞춰 수정)
-echo "VITE_API_BASE=http://127.0.0.1:8003" > .env.local
+echo "VITE_API_BASE=http://127.0.0.1:8000" > .env.local
 
 # 서버 실행
 npm run dev
 ```
 
 ### 4. 동작 확인
-- 백엔드: http://localhost:8003/health
+- 백엔드: http://localhost:8000/health
 - 프론트엔드: http://localhost:5173 (또는 Vite가 할당한 포트)
 
 ## 🛠️ 문제 해결 가이드
@@ -52,13 +52,13 @@ npm run dev
 ### 포트 충돌 문제
 ```bash
 # 사용 중인 포트 확인
-netstat -an | grep :8003
+netstat -an | grep :8000
 
 # 다른 포트 사용
-python -m uvicorn backend.main:app --port 8003 --reload
+python -m uvicorn backend.main:app --port 8000 --reload
 
 # 프론트엔드 환경변수도 수정
-echo "VITE_API_BASE=http://127.0.0.1:8003" > ../glbaguni-frontend/.env.local
+echo "VITE_API_BASE=http://127.0.0.1:8000" > ../glbaguni-frontend/.env.local
 ```
 
 ### import 에러 발생 시
@@ -97,10 +97,10 @@ for f in os.listdir(router_dir):
 ### 서버 상태 확인
 ```bash
 # 상세 헬스체크
-curl http://localhost:8003/health/detailed
+curl http://localhost:8000/health/detailed
 
 # 컴포넌트 상태 확인
-curl http://localhost:8003/status/services
+curl http://localhost:8000/status/services
 ```
 
 ### 로그 모니터링
@@ -121,7 +121,7 @@ pkill -f "uvicorn backend.main"  # Linux/Mac
 # Windows에서는 Ctrl+C 또는 터미널 종료
 
 # 깨끗한 재시작
-python -m uvicorn backend.main:app --port 8003 --reload
+python -m uvicorn backend.main:app --port 8000 --reload
 ```
 
 ### 2. 데이터베이스 초기화
@@ -130,7 +130,7 @@ python -m uvicorn backend.main:app --port 8003 --reload
 rm glbaguni.db
 
 # 서버 재시작으로 자동 재생성
-python -m uvicorn backend.main:app --port 8003 --reload
+python -m uvicorn backend.main:app --port 8000 --reload
 ```
 
 ### 3. 캐시 정리
@@ -177,7 +177,7 @@ echo "🚀 글바구니 시스템 시작..."
 # 백엔드 시작
 cd glbaguni-backend
 source .venv/bin/activate
-python -m uvicorn backend.main:app --port 8003 --reload &
+python -m uvicorn backend.main:app --port 8000 --reload &
 
 # 프론트엔드 시작 (3초 후)
 sleep 3
@@ -185,7 +185,7 @@ cd ../glbaguni-frontend
 npm run dev &
 
 echo "✅ 시스템 시작 완료!"
-echo "백엔드: http://localhost:8003"
+echo "백엔드: http://localhost:8000"
 echo "프론트엔드: http://localhost:5173"
 ```
 
@@ -205,9 +205,9 @@ else
     echo "⚠️ 문제 발견, 자동 수정 시도..."
     
     # 포트 변경
-    echo "VITE_API_BASE=http://127.0.0.1:8003" > ../glbaguni-frontend/.env.local
+    echo "VITE_API_BASE=http://127.0.0.1:8000" > ../glbaguni-frontend/.env.local
     
     # 서버 재시작
-    python -m uvicorn backend.main:app --port 8003 --reload
+    python -m uvicorn backend.main:app --port 8000 --reload
 fi
 ``` 

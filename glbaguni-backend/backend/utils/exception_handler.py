@@ -14,8 +14,17 @@ from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from backend.utils.logging_config import get_logger
-from backend.utils.validator import ValidationError
+try:
+    from .logging_config import get_logger
+    from .validator import ValidationError
+except ImportError:
+    # Fallback for direct execution
+    try:
+        from backend.utils.logging_config import get_logger
+        from backend.utils.validator import ValidationError
+    except ImportError:
+        from utils.logging_config import get_logger
+        from utils.validator import ValidationError
 
 logger = get_logger("exception_handler")
 

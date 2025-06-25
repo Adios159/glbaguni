@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// API Base URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8003';
+// API Base URL - 8000 포트로 통일
+const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
 // 환경변수 검증 (선택사항으로 변경)
 if (!import.meta.env.VITE_API_BASE) {

@@ -184,10 +184,10 @@ SECRET_KEY=your-secret-key-here
 cd backend && python main.py
 
 # 방법 2: uvicorn 직접 실행
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-백엔드 서버: `http://localhost:8003`
+백엔드 서버: `http://localhost:8000`
 
 ### 4. 프론트엔드 설정
 

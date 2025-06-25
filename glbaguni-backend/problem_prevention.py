@@ -113,7 +113,7 @@ class ProblemPrevention:
                 "message": f"사용 중인 포트: {used_ports}" if used_ports else "모든 포트 사용 가능",
                 "data": port_status,
                 "recommendations": [
-                    "백엔드는 8003 포트 사용 권장",
+                    "백엔드는 8000 포트 사용 권장",
                     "프론트엔드는 Vite 자동 할당 포트 사용",
                     "포트 충돌 시 다른 포트로 변경 필요"
                 ] if used_ports else []
@@ -474,7 +474,7 @@ class ProblemPrevention:
                 "description": "프론트엔드 API 주소를 환경변수로 설정하세요",
                 "commands": [
                     "cd ../glbaguni-frontend",
-                    "echo 'VITE_API_BASE=http://127.0.0.1:8003' > .env.local"
+                    "echo 'VITE_API_BASE=http://127.0.0.1:8000' > .env.local"
                 ]
             })
         
@@ -487,7 +487,7 @@ class ProblemPrevention:
             "commands": [
                 "# 1. 백엔드 실행",
                 "cd glbaguni-backend",
-                "python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload",
+                "python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload",
                 "",
                 "# 2. 프론트엔드 실행 (새 터미널)",
                 "cd glbaguni-frontend",
