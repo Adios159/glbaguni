@@ -1,5 +1,6 @@
+import re
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Optional, Union
 
 from pydantic import BaseModel, HttpUrl, field_validator
@@ -7,11 +8,13 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Date,
     Float,
     ForeignKey,
     Integer,
     String,
     Text,
+    JSON,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -35,8 +38,12 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    username = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String(128), nullable=False)
+    birth_year = Column(Integer, nullable=True)
+    gender = Column(String(20), nullable=True)  # '남성', '여성', '선택 안함'
+    interests = Column(JSON, nullable=True)  # 배열 저장
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -298,57 +305,131 @@ class UserStatsResponse(BaseModel):
 class UserCreate(BaseModel):
     """Request model for user registration."""
 
+    username: str
     email: str
     password: str
+    birth_year: Optional[int] = None
+    gender: Optional[str] = None
+    interests: Optional[List[str]] = None
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v):
+        """Validate username format and requirements."""
+        if not v or not isinstance(v, str):
+            raise ValueError("사용자명은 필수입니다")
+        
+        v = v.strip()
+        if len(v) < 3:
+            raise ValueError("사용자명은 3자 이상이어야 합니다")
+        if len(v) > 30:
+            raise ValueError("사용자명은 30자 이하여야 합니다")
+        
+        # 영문, 숫자, 언더스코어만 허용
+        if not re.match(r'^[a-zA-Z0-9_]+$', v):
+            raise ValueError("사용자명은 영문, 숫자, 언더스코어(_)만 사용 가능합니다")
+        
+        return v
 
     @field_validator("email")
     @classmethod
     def validate_email(cls, v):
-        """Validate email format and requirements"""
-        import re
+        """Validate email format."""
+        if not v or not isinstance(v, str):
+            raise ValueError("이메일은 필수입니다")
         
+        v = v.strip().lower()
         if not v:
             raise ValueError("이메일은 필수입니다")
         
-        # Email format validation
+        # 기본적인 이메일 형식 검증
         email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not re.match(email_pattern, v):
             raise ValueError("올바른 이메일 형식이 아닙니다")
         
-        if len(v) < 5:
-            raise ValueError("이메일은 최소 5자 이상이어야 합니다")
+        return v
+
+    @field_validator("birth_year")
+    @classmethod
+    def validate_birth_year(cls, v):
+        """Validate birth year."""
+        if v is None:
+            return v
         
-        if len(v) > 254:
-            raise ValueError("이메일은 최대 254자까지 가능합니다")
+        if not isinstance(v, int):
+            raise ValueError("출생년도는 숫자여야 합니다")
         
-        return v.lower().strip()  # Normalize email
+        current_year = datetime.now().year
+        if v < 1900 or v > current_year:
+            raise ValueError(f"출생년도는 1900년부터 {current_year}년까지 입력 가능합니다")
+        
+        # 만 14세 미만 가입 제한
+        age = current_year - v
+        if age < 14:
+            raise ValueError("만 14세 이상만 가입 가능합니다")
+        
+        return v
+
+    @field_validator("gender")
+    @classmethod
+    def validate_gender(cls, v):
+        """Validate gender value."""
+        if v is None or v == "":
+            return None
+        
+        valid_genders = ["남성", "여성", "선택 안함"]
+        if v not in valid_genders:
+            raise ValueError(f"성별은 {', '.join(valid_genders)} 중 하나여야 합니다")
+        
+        return v
+
+    @field_validator("interests")
+    @classmethod
+    def validate_interests(cls, v):
+        """Validate interests list."""
+        if v is None:
+            return []
+        
+        if not isinstance(v, list):
+            raise ValueError("관심사는 배열이어야 합니다")
+        
+        if len(v) > 10:
+            raise ValueError("관심사는 최대 10개까지 선택 가능합니다")
+        
+        # 유효한 관심사 목록
+        valid_interests = [
+            "음악", "산책", "글쓰기", "독서", "영화", "운동", "요리", "여행", 
+            "게임", "그림", "사진", "춤", "노래", "악기연주", "프로그래밍",
+            "언어학습", "반려동물", "가드닝", "수공예", "명상"
+        ]
+        
+        for interest in v:
+            if not isinstance(interest, str):
+                raise ValueError("관심사는 문자열이어야 합니다")
+            if interest not in valid_interests:
+                raise ValueError(f"유효하지 않은 관심사: {interest}")
+        
+        return v
 
     @field_validator("password")
     @classmethod
     def validate_password(cls, v):
-        """Enhanced password validation: 10+ chars, uppercase, special char"""
-        import re
-        
-        if not v:
+        """Validate password strength."""
+        if not v or not isinstance(v, str):
             raise ValueError("비밀번호는 필수입니다")
         
         if len(v) < 10:
             raise ValueError("비밀번호는 최소 10자 이상이어야 합니다")
-        
         if len(v) > 128:
-            raise ValueError("비밀번호는 최대 128자까지 가능합니다")
+            raise ValueError("비밀번호는 128자 이하여야 합니다")
         
-        # Check for uppercase letter
+        # 대문자 포함 검증
         if not re.search(r'[A-Z]', v):
             raise ValueError("비밀번호에 영어 대문자가 1개 이상 포함되어야 합니다")
         
-        # Check for special character
+        # 특수문자 포함 검증
         if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
-            raise ValueError("비밀번호에 특수문자(!@#$%^&*(),.?\":{}|<>)가 1개 이상 포함되어야 합니다")
-        
-        # Check for at least one letter or number (basic requirement)
-        if not re.search(r'[a-zA-Z0-9]', v):
-            raise ValueError("비밀번호에 영문자 또는 숫자가 포함되어야 합니다")
+            raise ValueError("비밀번호에 특수문자가 1개 이상 포함되어야 합니다")
         
         return v
 
@@ -357,7 +438,11 @@ class UserRead(BaseModel):
     """Response model for user data."""
 
     id: int
+    username: str
     email: str
+    birth_year: Optional[int] = None
+    gender: Optional[str] = None
+    interests: Optional[List[str]] = None
 
     class Config:
         from_attributes = True

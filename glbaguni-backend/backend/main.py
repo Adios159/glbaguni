@@ -21,37 +21,37 @@ load_dotenv()
 
 # ===== 로깅 시스템 설정 =====
 try:
-    from backend.utils.logging_config import setup_comprehensive_logging
-except ImportError:
     from utils.logging_config import setup_comprehensive_logging
+except ImportError:
+    from backend.utils.logging_config import setup_comprehensive_logging
 
 os.makedirs("logs", exist_ok=True)
 logger = setup_comprehensive_logging()
 
 # ===== 환경변수 검증 =====
 try:
-    from backend.utils.environment import validate_environment_comprehensive
-except ImportError:
     from utils.environment import validate_environment_comprehensive
+except ImportError:
+    from backend.utils.environment import validate_environment_comprehensive
 
 if not validate_environment_comprehensive():
     sys.exit(1)
 
 # ===== 미들웨어 및 예외 핸들러 =====
 try:
-    from backend.utils.exception_handlers import (
-        global_exception_handler,
-        http_exception_handler,
-        validation_exception_handler,
-    )
-    from backend.utils.middleware import logging_middleware
-except ImportError:
     from utils.exception_handlers import (
         global_exception_handler,
         http_exception_handler,
         validation_exception_handler,
     )
     from utils.middleware import logging_middleware
+except ImportError:
+    from backend.utils.exception_handlers import (
+        global_exception_handler,
+        http_exception_handler,
+        validation_exception_handler,
+    )
+    from backend.utils.middleware import logging_middleware
 
 
 # ===== 애플리케이션 라이프사이클 =====
@@ -63,7 +63,10 @@ async def lifespan(app: FastAPI):
     try:
         logger.info("🔧 서버 초기화 시작...")
         # 새로운 안전한 컴포넌트 관리자 사용
-        from backend.utils.component_manager import initialize_all_components
+        try:
+            from utils.component_manager import initialize_all_components
+        except ImportError:
+            from backend.utils.component_manager import initialize_all_components
         await initialize_all_components()
 
         startup_time = time.time() - startup_start
@@ -77,7 +80,10 @@ async def lifespan(app: FastAPI):
     finally:
         logger.info("🔄 서버 종료 중...")
         # 새로운 안전한 컴포넌트 관리자 사용
-        from backend.utils.component_manager import cleanup_components
+        try:
+            from utils.component_manager import cleanup_components
+        except ImportError:
+            from backend.utils.component_manager import cleanup_components
         await cleanup_components()
         logger.info("✅ 서버 종료 완료")
 
@@ -112,48 +118,108 @@ app.add_exception_handler(Exception, global_exception_handler)
 
 # ===== 라우터 등록 =====
 def register_routers():
-    """모든 라우터를 앱에 등록"""
+    """모든 라우터를 앱에 등록 - 개선된 오류 처리"""
     import importlib.util
     
     routers_to_register = [
-        ("core", "핵심 기능"),
-        ("summarize", "요약 서비스"),
-        ("health", "헬스체크"),
-        ("auth", "인증 및 보안"),
-        ("news", "뉴스 검색"),
-        ("fetch", "데이터 수집"),
-        ("history_router", "히스토리"),
+        ("core", "핵심 기능", True),  # 필수 라우터
+        ("summarize", "요약 서비스", True),  # 필수 라우터
+        ("health", "헬스체크", True),  # 필수 라우터
+        ("auth", "인증 및 보안", False),  # 선택적 라우터
+        ("news", "뉴스 검색", False),  # 선택적 라우터
+        ("fetch", "데이터 수집", False),  # 선택적 라우터
+        ("history_router", "히스토리", False),  # 선택적 라우터
+        ("sources", "언론사 목록", False),  # 선택적 라우터
     ]
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
+    successful_routers = 0
+    failed_routers = 0
 
-    for router_name, description in routers_to_register:
+    for router_name, description, is_required in routers_to_register:
         try:
             # 직접 파일 import만 사용 (가장 안정적)
             router_file = os.path.join(current_dir, "routers", f"{router_name}.py")
             
             if not os.path.exists(router_file):
-                logger.warning(f"⚠️ {description} 라우터 파일이 존재하지 않습니다: {router_file}")
-                continue
+                if is_required:
+                    logger.error(f"❌ 필수 라우터 파일이 존재하지 않습니다: {router_file}")
+                    raise FileNotFoundError(f"필수 라우터 파일 없음: {router_name}")
+                else:
+                    logger.warning(f"⚠️ 선택적 라우터 파일이 존재하지 않습니다: {router_file}")
+                    failed_routers += 1
+                    continue
                 
             spec = importlib.util.spec_from_file_location(f"routers.{router_name}", router_file)
             if not spec or not spec.loader:
-                logger.warning(f"⚠️ {description} 라우터 spec 생성 실패")
-                continue
+                if is_required:
+                    logger.error(f"❌ 필수 라우터 spec 생성 실패: {router_name}")
+                    raise ImportError(f"필수 라우터 spec 생성 실패: {router_name}")
+                else:
+                    logger.warning(f"⚠️ 선택적 라우터 spec 생성 실패: {router_name}")
+                    failed_routers += 1
+                    continue
                 
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
-            if hasattr(module, "router"):
-                app.include_router(module.router)
+            # 라우터 객체 찾기 (여러 가능한 이름 시도)
+            router_obj = None
+            possible_names = ["router", "create_router", f"{router_name}_router"]
+            
+            for name in possible_names:
+                if hasattr(module, name):
+                    router_obj = getattr(module, name)
+                    
+                    # 함수인 경우 호출해서 라우터 생성
+                    if callable(router_obj) and not hasattr(router_obj, 'include_router'):
+                        try:
+                            router_obj = router_obj()
+                        except Exception as e:
+                            logger.warning(f"⚠️ 라우터 생성 함수 호출 실패 ({router_name}): {e}")
+                            continue
+                    break
+            
+            if router_obj and hasattr(router_obj, 'include_router'):
+                app.include_router(router_obj)
                 logger.info(f"✅ {description} 라우터 등록 완료 ({router_name})")
+                successful_routers += 1
+            elif router_obj:
+                # FastAPI 라우터가 아닌 경우
+                logger.warning(f"⚠️ {router_name} 모듈의 라우터 객체가 FastAPI 라우터가 아닙니다")
+                if is_required:
+                    raise ValueError(f"필수 라우터가 올바른 형태가 아님: {router_name}")
+                failed_routers += 1
             else:
-                logger.warning(f"⚠️ {router_name} 모듈에 router 속성이 없습니다")
+                # 라우터 객체를 찾을 수 없는 경우
+                logger.warning(f"⚠️ {router_name} 모듈에서 라우터 객체를 찾을 수 없습니다 (시도한 이름: {possible_names})")
+                if is_required:
+                    raise ValueError(f"필수 라우터 객체를 찾을 수 없음: {router_name}")
+                failed_routers += 1
 
         except Exception as e:
-            logger.error(f"❌ {description} 라우터 등록 중 오류 ({router_name}): {e}")
-            import traceback
-            logger.debug(f"상세 오류: {traceback.format_exc()}")
+            if is_required:
+                logger.error(f"❌ 필수 라우터 등록 실패 ({router_name}): {e}")
+                # 필수 라우터 실패 시 서버 시작 중단
+                raise
+            else:
+                logger.error(f"❌ 선택적 라우터 등록 중 오류 ({router_name}): {e}")
+                import traceback
+                logger.debug(f"상세 오류: {traceback.format_exc()}")
+                failed_routers += 1
+    
+    # 등록 결과 요약
+    total_routers = len(routers_to_register)
+    success_rate = (successful_routers / total_routers) * 100 if total_routers > 0 else 0
+    
+    logger.info(f"📊 라우터 등록 완료: {successful_routers}/{total_routers} 성공 ({success_rate:.1f}%)")
+    
+    if failed_routers > 0:
+        logger.warning(f"⚠️ {failed_routers}개 선택적 라우터 실패 (서버는 정상 작동)")
+    
+    if successful_routers == 0:
+        logger.error("❌ 모든 라우터 등록 실패! 서버를 시작할 수 없습니다.")
+        raise RuntimeError("모든 라우터 등록 실패")
 
 
 # 라우터 등록 실행
@@ -185,8 +251,12 @@ async def news_search_compat(request: NewsSearchRequest, background_tasks: Backg
         logger.info(f"🔍 [{request_id}] 뉴스 검색 요청: '{request.query}'")
         
         # NewsAggregator를 직접 사용
-        from backend.news_aggregator import NewsAggregator
-        from backend.config import get_settings
+        try:
+            from news_aggregator import NewsAggregator
+            from config import get_settings
+        except ImportError:
+            from backend.news_aggregator import NewsAggregator
+            from backend.config import get_settings
         
         settings = get_settings()
         openai_api_key = getattr(settings, 'openai_api_key', None)
@@ -251,8 +321,12 @@ async def send_news_email_background(recipient_email: str, query: str, articles:
         logger.info(f"📧 [{request_id}] 뉴스 이메일 발송 시작: {recipient_email}")
         
         # EmailNotifier와 ArticleSummary 임포트
-        from backend.notifier import EmailNotifier
-        from backend.models import ArticleSummary
+        try:
+            from notifier import EmailNotifier
+            from models import ArticleSummary
+        except ImportError:
+            from backend.notifier import EmailNotifier
+            from backend.models import ArticleSummary
         
         # EmailNotifier 인스턴스 생성
         email_notifier = EmailNotifier()
@@ -301,7 +375,10 @@ async def test_email_sending(request: dict):
         logger.info(f"📧 이메일 테스트 요청: {recipient}")
         
         # EmailNotifier 임포트 및 초기화
-        from backend.notifier import EmailNotifier
+        try:
+            from notifier import EmailNotifier
+        except ImportError:
+            from backend.notifier import EmailNotifier
         email_notifier = EmailNotifier()
         
         # 테스트 이메일 발송

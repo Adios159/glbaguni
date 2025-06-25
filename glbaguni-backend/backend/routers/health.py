@@ -7,11 +7,14 @@ Health Check Router - Simplified
 
 import platform
 import sys
+import time
+import logging
+import os
 from datetime import datetime
 from typing import Any, Dict
 
 import psutil
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
 try:
@@ -82,59 +85,58 @@ async def get_service_info() -> JSONResponse:
 
 
 @router.get("/health")
-async def health_check() -> JSONResponse:
-    """시스템 헬스 체크"""
+async def health_check() -> Dict[str, Any]:
+    """개선된 헬스체크 - 상세한 시스템 상태 제공"""
+    start_time = time.time()
+    
     try:
-        settings = get_settings()
-
-        # 기본 시스템 정보
-        cpu_usage = psutil.cpu_percent(interval=0.1)
-        memory = psutil.virtual_memory()
-
-        # 업타임 계산
-        uptime = datetime.now() - start_time
-        uptime_str = str(uptime).split(".")[0]
-
-        # 상태 결정
-        status = "healthy"
-        if cpu_usage > 90 or memory.percent > 90:
-            status = "critical"
-        elif cpu_usage > 70 or memory.percent > 70:
-            status = "warning"
-
-        health_data = {
-            "status": status,
-            "version": settings.app_version,
-            "uptime": uptime_str,
-            "resources": {
-                "cpu_usage": round(cpu_usage, 1),
-                "memory_percent": round(memory.percent, 1),
-                "memory_used_mb": round(memory.used / 1024 / 1024, 1),
-            },
-            "timestamp": datetime.now().isoformat(),
+        # 기본 서버 상태
+        basic_status = {
+            "status": "healthy",
+            "timestamp": time.time(),
+            "server": {
+                "name": "글바구니 (Glbaguni) Backend",
+                "version": "3.0.0",
+                "uptime": time.time() - start_time,
+                "python_version": f"{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}",
+                "environment": os.getenv("ENVIRONMENT", "development")
+            }
         }
-
-        status_code = 200 if status in ["healthy", "warning"] else 503
-
-        return JSONResponse(
-            status_code=status_code,
-            content={
-                "success": True,
-                "message": f"시스템 상태: {status}",
-                "data": health_data,
-            },
-        )
-
+        
+        # 컴포넌트 상태 (가능한 경우)
+        if get_component_status:
+            try:
+                component_status = get_component_status()
+                basic_status["components"] = component_status
+            except Exception as e:
+                logging.warning(f"컴포넌트 상태 조회 실패: {e}")
+                basic_status["components"] = {
+                    "error": "컴포넌트 상태를 조회할 수 없습니다",
+                    "reason": str(e)
+                }
+        else:
+            basic_status["components"] = {
+                "warning": "컴포넌트 매니저를 사용할 수 없습니다"
+            }
+        
+        # 환경변수 상태 확인
+        env_status = check_environment_status()
+        basic_status["environment"] = env_status
+        
+        # 응답 시간 계산
+        response_time = time.time() - start_time
+        basic_status["response_time_ms"] = round(response_time * 1000, 2)
+        
+        return basic_status
+        
     except Exception as e:
-        logger.error(f"헬스 체크 실패: {e}")
-        return JSONResponse(
-            status_code=503,
-            content={
-                "success": False,
-                "message": f"헬스 체크 실패: {str(e)}",
-                "data": {"error": str(e)},
-            },
-        )
+        logging.error(f"헬스체크 중 오류: {e}")
+        return {
+            "status": "error",
+            "timestamp": time.time(),
+            "error": str(e),
+            "response_time_ms": round((time.time() - start_time) * 1000, 2)
+        }
 
 
 @router.get("/debug")
@@ -406,3 +408,97 @@ def check_system_resources() -> Dict[str, Any]:
             "cpu_percent": None,
             "memory_percent": None,
         }
+
+
+def check_environment_status() -> Dict[str, Any]:
+    """환경변수 상태 확인"""
+    env_vars = [
+        "OPENAI_API_KEY",
+        "SMTP_USERNAME", 
+        "SMTP_PASSWORD",
+        "DATABASE_URL"
+    ]
+    
+    status = {
+        "configured": [],
+        "missing": [],
+        "total": len(env_vars)
+    }
+    
+    for var in env_vars:
+        if os.getenv(var):
+            status["configured"].append(var)
+        else:
+            status["missing"].append(var)
+    
+    status["configured_count"] = len(status["configured"])
+    status["missing_count"] = len(status["missing"])
+    status["configuration_rate"] = (status["configured_count"] / status["total"]) * 100
+    
+    return status
+
+
+@router.get("/health/detailed")
+async def detailed_health_check() -> Dict[str, Any]:
+    """상세한 헬스체크 - 모든 시스템 정보"""
+    try:
+        basic_health = await health_check()
+        
+        # 추가 상세 정보
+        detailed_info = {
+            "system": {
+                "platform": os.name,
+                "cwd": os.getcwd(),
+                "process_id": os.getpid() if hasattr(os, 'getpid') else "unknown"
+            },
+            "memory": get_memory_info(),
+            "disk": get_disk_info()
+        }
+        
+        basic_health["detailed"] = detailed_info
+        return basic_health
+        
+    except Exception as e:
+        logging.error(f"상세 헬스체크 중 오류: {e}")
+        raise HTTPException(500, f"상세 헬스체크 실패: {str(e)}")
+
+
+def get_memory_info() -> Dict[str, Any]:
+    """메모리 정보 조회 (가능한 경우)"""
+    try:
+        import psutil
+        memory = psutil.virtual_memory()
+        return {
+            "total_gb": round(memory.total / (1024**3), 2),
+            "available_gb": round(memory.available / (1024**3), 2),
+            "used_percent": memory.percent
+        }
+    except ImportError:
+        return {"error": "psutil 패키지가 설치되지 않음"}
+    except Exception as e:
+        return {"error": f"메모리 정보 조회 실패: {str(e)}"}
+
+
+def get_disk_info() -> Dict[str, Any]:
+    """디스크 정보 조회 (가능한 경우)"""
+    try:
+        import psutil
+        disk = psutil.disk_usage('/')
+        return {
+            "total_gb": round(disk.total / (1024**3), 2),
+            "free_gb": round(disk.free / (1024**3), 2),
+            "used_percent": round((disk.used / disk.total) * 100, 2)
+        }
+    except ImportError:
+        return {"error": "psutil 패키지가 설치되지 않음"}
+    except Exception as e:
+        return {"error": f"디스크 정보 조회 실패: {str(e)}"}
+
+
+@router.get("/health/simple")
+async def simple_health_check() -> Dict[str, str]:
+    """간단한 헬스체크 - 로드밸런서용"""
+    return {
+        "status": "ok",
+        "timestamp": str(int(time.time()))
+    }

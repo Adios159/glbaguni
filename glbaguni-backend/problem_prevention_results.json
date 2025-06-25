@@ -1,0 +1,226 @@
+{
+  "timestamp": 1750825607.5336473,
+  "checks": {
+    "포트 검증": {
+      "status": "warning",
+      "message": "사용 중인 포트: [8001, 8003, 5173, 5174, 5175, 5176, 5177, 5178]",
+      "data": {
+        "8000": "사용가능",
+        "8001": "사용중",
+        "8002": "사용가능",
+        "8003": "사용중",
+        "5173": "사용중",
+        "5174": "사용중",
+        "5175": "사용중",
+        "5176": "사용중",
+        "5177": "사용중",
+        "5178": "사용중"
+      },
+      "recommendations": [
+        "백엔드는 8003 포트 사용 권장",
+        "프론트엔드는 Vite 자동 할당 포트 사용",
+        "포트 충돌 시 다른 포트로 변경 필요"
+      ]
+    },
+    "환경변수 검증": {
+      "status": "warning",
+      "message": "필수 환경변수 0개 누락, 선택적 3개 누락",
+      "data": {
+        "configured": [
+          "OPENAI_API_KEY: OpenAI API 키 (요약 기능용)",
+          "SMTP_USERNAME: 이메일 SMTP 사용자명",
+          "SMTP_PASSWORD: 이메일 SMTP 비밀번호"
+        ],
+        "missing_required": [],
+        "missing_optional": [
+          "DATABASE_URL: 데이터베이스 연결 URL",
+          "REDIS_URL: Redis 연결 URL",
+          "LOG_LEVEL: 로그 레벨 설정"
+        ],
+        "frontend_env_exists": true
+      },
+      "recommendations": [
+        "누락된 필수 환경변수를 .env 파일에 설정하세요",
+        null
+      ]
+    },
+    "Python 의존성 검증": {
+      "status": "success",
+      "message": "모든 핵심 의존성 설치됨",
+      "data": {
+        "installed_count": 126,
+        "missing_critical": [],
+        "critical_installed": [
+          "fastapi",
+          "uvicorn",
+          "openai",
+          "requests",
+          "sqlalchemy"
+        ]
+      },
+      "recommendations": [
+        null
+      ]
+    },
+    "파일 구조 검증": {
+      "status": "success",
+      "message": "필수 파일 0개 누락, 선택적 파일 0개 누락",
+      "data": {
+        "existing_files": [
+          "backend/main.py",
+          "backend/routers/health.py",
+          "backend/routers/core.py",
+          "backend/routers/summarize.py",
+          "backend/utils/component_manager.py",
+          "backend/utils/logging_config.py",
+          "backend/routers/auth.py",
+          "backend/routers/news.py",
+          "backend/routers/fetch.py",
+          "backend/routers/history_router.py",
+          "backend/routers/sources.py"
+        ],
+        "missing_critical": [],
+        "missing_optional": []
+      },
+      "recommendations": [
+        null
+      ]
+    },
+    "import 경로 검증": {
+      "status": "success",
+      "message": "import 실패: 0개",
+      "data": {
+        "successful": [
+          "backend.main: 메인 애플리케이션",
+          "backend.utils.component_manager: 컴포넌트 매니저",
+          "backend.utils.logging_config: 로깅 설정",
+          "backend.routers.health: 헬스체크 라우터"
+        ],
+        "failed": []
+      },
+      "recommendations": [
+        null
+      ]
+    },
+    "설정 파일 검증": {
+      "status": "success",
+      "message": "설정 파일 0개 누락",
+      "data": {
+        "existing": [
+          "pyproject.toml: Python 프로젝트 설정",
+          "requirements.txt: Python 의존성",
+          "../glbaguni-frontend/package.json: 프론트엔드 의존성",
+          "../glbaguni-frontend/vite.config.js: Vite 설정"
+        ],
+        "missing": []
+      },
+      "recommendations": [
+        null
+      ]
+    },
+    "라우터 파일 검증": {
+      "status": "success",
+      "message": "문제가 있는 라우터 파일: 0개",
+      "data": {
+        "all_routers": [
+          {
+            "file": "auth.py",
+            "has_router": true,
+            "has_fastapi_import": true,
+            "status": "ok"
+          },
+          {
+            "file": "core.py",
+            "has_router": true,
+            "has_fastapi_import": true,
+            "status": "ok"
+          },
+          {
+            "file": "fetch.py",
+            "has_router": true,
+            "has_fastapi_import": true,
+            "status": "ok"
+          },
+          {
+            "file": "health.py",
+            "has_router": true,
+            "has_fastapi_import": true,
+            "status": "ok"
+          },
+          {
+            "file": "history_router.py",
+            "has_router": true,
+            "has_fastapi_import": true,
+            "status": "ok"
+          },
+          {
+            "file": "main.py",
+            "has_router": true,
+            "has_fastapi_import": true,
+            "status": "ok"
+          },
+          {
+            "file": "news.py",
+            "has_router": true,
+            "has_fastapi_import": true,
+            "status": "ok"
+          },
+          {
+            "file": "sources.py",
+            "has_router": true,
+            "has_fastapi_import": true,
+            "status": "ok"
+          },
+          {
+            "file": "summarize.py",
+            "has_router": true,
+            "has_fastapi_import": true,
+            "status": "ok"
+          }
+        ],
+        "problematic": []
+      },
+      "recommendations": [
+        null
+      ]
+    },
+    "컴포넌트 초기화 검증": {
+      "status": "success",
+      "message": "누락된 중요 함수: 0개",
+      "data": {
+        "existing_functions": [
+          "initialize_all_components",
+          "get_component_status",
+          "safe_initialize_component",
+          "cleanup_components"
+        ],
+        "missing_functions": []
+      },
+      "recommendations": [
+        null
+      ]
+    }
+  },
+  "recommendations": [
+    {
+      "priority": "low",
+      "category": "운영",
+      "title": "안정적인 서버 실행 방법",
+      "description": "권장되는 서버 실행 순서를 따르세요",
+      "commands": [
+        "# 1. 백엔드 실행",
+        "cd glbaguni-backend",
+        "python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload",
+        "",
+        "# 2. 프론트엔드 실행 (새 터미널)",
+        "cd glbaguni-frontend",
+        "npm run dev"
+      ]
+    }
+  ],
+  "critical_issues": [],
+  "warnings": [
+    "포트 검증: 사용 중인 포트: [8001, 8003, 5173, 5174, 5175, 5176, 5177, 5178]",
+    "환경변수 검증: 필수 환경변수 0개 누락, 선택적 3개 누락"
+  ]
+}

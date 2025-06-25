@@ -1,7 +1,13 @@
 import axios from 'axios';
 
 // API Base URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+const API_BASE_URL = import.meta.env.VITE_API_BASE;
+
+// 환경변수 검증
+if (!API_BASE_URL) {
+  console.error('⚠️ VITE_API_BASE 환경변수가 설정되지 않았습니다. .env.local 파일을 확인해주세요.');
+  throw new Error('API Base URL이 설정되지 않았습니다.');
+}
 
 // Axios 인스턴스 생성
 const api = axios.create({
@@ -64,6 +70,37 @@ export const authAPI = {
   // 현재 사용자 정보 조회
   getCurrentUser: async () => {
     const response = await api.get('/auth/me');
+    return response.data;
+  },
+};
+
+// 뉴스 소스 API
+export const sourcesAPI = {
+  // 모든 뉴스 소스 조회
+  getAllSources: async () => {
+    const response = await api.get('/sources/');
+    return response.data;
+  },
+
+  // 카테고리별 뉴스 소스 조회
+  getSourcesByCategory: async (category) => {
+    const response = await api.get(`/sources/?category=${category}`);
+    return response.data;
+  },
+
+  // 사용 가능한 카테고리 목록 조회
+  getCategories: async () => {
+    const response = await api.get('/sources/categories');
+    return response.data;
+  },
+
+  // 뉴스 소스 구독
+  subscribe: async (user_id, name, rss_url) => {
+    const response = await api.post('/subscribe', {
+      user_id,
+      name,
+      rss_url
+    });
     return response.data;
   },
 };

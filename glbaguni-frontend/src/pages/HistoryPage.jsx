@@ -9,7 +9,7 @@ const HistoryPage = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [languageFilter, setLanguageFilter] = useState('');
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const API_BASE_URL = import.meta.env.VITE_API_BASE;
   
   // 사용자 ID 가져오기 또는 생성
   const getUserId = () => {

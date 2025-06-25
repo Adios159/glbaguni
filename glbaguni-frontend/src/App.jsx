@@ -10,6 +10,7 @@ import RecommendationPage from "./pages/RecommendationPage";
 import ContactPage from "./pages/ContactPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
+import SourcesPage from "./pages/SourcesPage";
 
 function App() {
   const { theme, toggleTheme } = useTheme();
@@ -21,7 +22,7 @@ function App() {
           <Navbar />
           
           <div className="fixed top-4 right-4 z-50">
-            <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+            <ThemeToggle />
           </div>
 
           <main>
@@ -32,6 +33,7 @@ function App() {
               <Route path="/summarize" element={<SummarizePage />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/recommendations" element={<RecommendationPage />} />
+              <Route path="/sources" element={<SourcesPage />} />
               <Route path="/contact" element={<ContactPage />} />
             </Routes>
           </main>

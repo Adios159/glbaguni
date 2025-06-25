@@ -9,6 +9,7 @@ const Navbar = () => {
     { path: '/summarize', icon: '📝', label: 'Summarize' },
     { path: '/history', icon: '📖', label: 'My History' },
     { path: '/recommendations', icon: '🔥', label: 'Recommendations' },
+    { path: '/sources', icon: '📰', label: 'News Sources' },
     { path: '/contact', icon: '📬', label: 'Contact' },
     { path: '/login', icon: '🔐', label: 'Login' },
     { path: '/signup', icon: '✨', label: 'Sign Up' }

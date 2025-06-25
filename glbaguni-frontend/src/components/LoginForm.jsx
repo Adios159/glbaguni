@@ -12,7 +12,7 @@ const LoginForm = () => {
   const [user, setUser] = useState(null);
 
   // API Base URL (환경에 따라 수정)
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+  const API_BASE_URL = import.meta.env.VITE_API_BASE;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

@@ -187,36 +187,51 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 # 사용자 생성 및 인증 함수
-def create_user(db: Session, email: str, password: str) -> dict:
+def create_user(db: Session, username: str, email: str, password: str, 
+                birth_year: int = None, gender: str = None, interests: list = None) -> dict:
     """
     새로운 사용자를 생성합니다.
     
     Args:
         db: SQLAlchemy 세션
-        email: 사용자 이메일
-        password: 평문 비밀번호
+        username: 사용자명 (필수)
+        email: 이메일 (필수)
+        password: 평문 비밀번호 (필수)
+        birth_year: 출생년도 (선택)
+        gender: 성별 (선택)
+        interests: 관심사 배열 (선택)
         
     Returns:
         dict: 생성된 사용자 정보 또는 오류 정보
         
     Example:
-        >>> result = create_user(db, "user@example.com", "password123")
+        >>> result = create_user(db, "user123", "user@email.com", "Password123!", birth_year=1990)
         >>> print(result["success"])  # True 또는 False
     """
-    if not email or not password:
+    if not username or not email or not password:
         logger.warning("사용자 생성: 필수 파라미터 누락")
         return {
             "success": False,
-            "message": "이메일과 비밀번호는 필수입니다.",
+            "message": "사용자명, 이메일, 비밀번호는 필수입니다.",
             "user": None
         }
     
     try:
         from backend.models.models import User
         
-        # 중복 이메일 확인
-        existing_user = db.query(User).filter(User.email == email.lower().strip()).first()
+        # 중복 사용자명 확인
+        existing_user = db.query(User).filter(User.username == username.strip()).first()
         if existing_user:
+            logger.warning(f"사용자 생성 실패: 사용자명 중복 ({username})")
+            return {
+                "success": False,
+                "message": "이미 사용 중인 사용자명입니다.",
+                "user": None
+            }
+        
+        # 중복 이메일 확인
+        existing_email = db.query(User).filter(User.email == email.lower().strip()).first()
+        if existing_email:
             logger.warning(f"사용자 생성 실패: 이메일 중복 ({email})")
             return {
                 "success": False,
@@ -229,19 +244,30 @@ def create_user(db: Session, email: str, password: str) -> dict:
         
         # 새 사용자 생성
         new_user = User(
+            username=username.strip(),
             email=email.lower().strip(),
-            hashed_password=hashed_password
+            hashed_password=hashed_password,
+            birth_year=birth_year,
+            gender=gender,
+            interests=interests
         )
         
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
         
-        logger.info(f"새 사용자 생성 성공: {email}")
+        logger.info(f"새 사용자 생성 성공: {username}")
         return {
             "success": True,
             "message": "사용자가 성공적으로 생성되었습니다.",
-            "user": {"id": new_user.id, "email": new_user.email}
+            "user": {
+                "id": new_user.id, 
+                "username": new_user.username,
+                "email": new_user.email,
+                "birth_year": new_user.birth_year,
+                "gender": new_user.gender,
+                "interests": new_user.interests
+            }
         }
         
     except Exception as e:
@@ -254,57 +280,68 @@ def create_user(db: Session, email: str, password: str) -> dict:
         }
 
 
-def authenticate_user(db: Session, email: str, password: str) -> dict:
+def authenticate_user(db: Session, email_or_username: str, password: str) -> dict:
     """
-    사용자 인증을 수행합니다.
+    사용자 인증을 수행합니다. (이메일 또는 사용자명으로 로그인 가능)
     
     Args:
         db: SQLAlchemy 세션
-        email: 사용자 이메일
+        email_or_username: 이메일 또는 사용자명
         password: 평문 비밀번호
         
     Returns:
         dict: 인증 결과 및 사용자 정보
         
     Example:
-        >>> result = authenticate_user(db, "user@example.com", "password123")
+        >>> result = authenticate_user(db, "user@email.com", "password123")
         >>> print(result["success"])  # True 또는 False
     """
-    if not email or not password:
+    if not email_or_username or not password:
         logger.warning("사용자 인증: 필수 파라미터 누락")
         return {
             "success": False,
-            "message": "이메일과 비밀번호는 필수입니다.",
+            "message": "이메일/사용자명과 비밀번호는 필수입니다.",
             "user": None
         }
     
     try:
         from backend.models.models import User
         
-        # 사용자 조회
-        user = db.query(User).filter(User.email == email.lower().strip()).first()
+        # 이메일 또는 사용자명으로 사용자 조회
+        user = None
+        if "@" in email_or_username:
+            # 이메일로 로그인
+            user = db.query(User).filter(User.email == email_or_username.lower().strip()).first()
+        else:
+            # 사용자명으로 로그인
+            user = db.query(User).filter(User.username == email_or_username.strip()).first()
+        
         if not user:
-            logger.warning(f"사용자 인증 실패: 존재하지 않는 이메일 ({email})")
+            logger.warning(f"사용자 인증 실패: 존재하지 않는 계정 ({email_or_username})")
             return {
                 "success": False,
-                "message": "이메일 또는 비밀번호가 올바르지 않습니다.",
+                "message": "이메일/사용자명 또는 비밀번호가 올바르지 않습니다.",
                 "user": None
             }
         
         # 비밀번호 검증
         if not verify_password(password, user.hashed_password):
-            logger.warning(f"사용자 인증 실패: 잘못된 비밀번호 ({email})")
+            logger.warning(f"사용자 인증 실패: 잘못된 비밀번호 ({email_or_username})")
             return {
                 "success": False,
-                "message": "이메일 또는 비밀번호가 올바르지 않습니다.",
+                "message": "이메일/사용자명 또는 비밀번호가 올바르지 않습니다.",
                 "user": None
             }
         
-        logger.info(f"사용자 인증 성공: {email}")
+        logger.info(f"사용자 인증 성공: {email_or_username}")
         return {
             "success": True,
             "message": "인증이 성공했습니다.",
-            "user": {"id": user.id, "email": user.email}
+            "user": {
+                "id": user.id, 
+                "username": user.username,
+                "email": user.email
+            }
         }
         
     except Exception as e:

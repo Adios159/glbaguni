@@ -74,7 +74,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     새로운 사용자를 등록합니다.
     
     Args:
-        user_data: 사용자 생성 데이터 (email, password)
+        user_data: 사용자 생성 데이터 (username, email, password, birth_year, gender, interests)
         db: 데이터베이스 세션
         
     Returns:
@@ -83,14 +83,26 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     Example:
         POST /auth/register
         {
-            "email": "user@example.com",
-            "password": "StrongPass123!"
+            "username": "user123",
+            "email": "user@email.com",
+            "password": "StrongPass123!",
+            "birth_year": 1990,
+            "gender": "남성",
+            "interests": ["음악", "산책"]
         }
     """
-    logger.info(f"회원가입 요청: email={user_data.email}")
+    logger.info(f"회원가입 요청: username={user_data.username}")
     
-    # 사용자 생성 (내부적으로 SQLAlchemy filter 사용)
-    result = create_user(db, user_data.email, user_data.password)
+    # 사용자 생성
+    result = create_user(
+        db, 
+        user_data.username,
+        user_data.email, 
+        user_data.password, 
+        user_data.birth_year,
+        user_data.gender,
+        user_data.interests
+    )
     
     if not result["success"]:
         logger.warning(f"회원가입 실패: {result['message']}")
@@ -99,48 +111,40 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
             detail=result["message"]
         )
     
-    logger.info(f"회원가입 성공: email={user_data.email}, user_id={result['user']['id']}")
+    logger.info(f"회원가입 성공: username={user_data.username}, user_id={result['user']['id']}")
     
     return {
         "success": True,
         "message": "회원가입이 완료되었습니다.",
-        "user": {
-            "id": result["user"]["id"],
-            "email": result["user"]["email"]
-        }
+        "user": result["user"]
     }
 
 
 @router.post("/login", response_model=dict)
-async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
-):
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     """
-    사용자 로그인을 처리하고 JWT 토큰을 반환합니다.
+    사용자 로그인을 처리합니다.
     
     Args:
-        form_data: OAuth2 표준 로그인 폼 (username을 email로 사용)
+        form_data: OAuth2 폼 데이터 (username 필드에 이메일 또는 사용자명 입력)
         db: 데이터베이스 세션
         
     Returns:
-        dict: JWT 액세스 토큰과 토큰 타입
+        dict: 로그인 결과 및 JWT 토큰
         
     Example:
-        POST /auth/login
-        Content-Type: application/x-www-form-urlencoded
-        
-        username=user@example.com&password=StrongPass123!
+        POST /auth/login (form-data)
+        username=user@email.com&password=StrongPass123!
+        또는
+        username=user123&password=StrongPass123!
     """
-    # OAuth2PasswordRequestForm에서 username 필드를 email로 처리
-    email = form_data.username  # OAuth2 표준에서는 username 필드를 사용하지만 실제로는 email
-    logger.info(f"로그인 요청: email={email}")
+    logger.info(f"로그인 요청: email_or_username={form_data.username}")
     
-    # 사용자 인증 (내부적으로 SQLAlchemy filter 사용)
-    auth_result = authenticate_user(db, email, form_data.password)
+    # 사용자 인증 (form_data.username을 이메일 또는 사용자명으로 처리)
+    auth_result = authenticate_user(db, form_data.username, form_data.password)
     
     if not auth_result["success"]:
-        logger.warning(f"로그인 실패: email={email}, error={auth_result['message']}")
+        logger.warning(f"로그인 실패: {auth_result['message']}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=auth_result["message"],
@@ -148,16 +152,16 @@ async def login(
         )
     
     # JWT 토큰 생성
-    access_token = create_access_token(data={"user_id": auth_result["user"]["id"]})
+    access_token = create_access_token(data={"sub": str(auth_result["user"]["id"])})
     
-    logger.info(f"로그인 성공: email={email}, user_id={auth_result['user']['id']}")
+    logger.info(f"로그인 성공: username={form_data.username}, user_id={auth_result['user']['id']}")
     
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user": {
             "id": auth_result["user"]["id"],
-            "email": auth_result["user"]["email"]
+            "username": auth_result["user"]["username"]
         }
     }
 
@@ -177,11 +181,15 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         GET /auth/me
         Authorization: Bearer <jwt_token>
     """
-    logger.info(f"사용자 정보 조회: user_id={current_user.id}, email={current_user.email}")
+    logger.info(f"사용자 정보 조회: user_id={current_user.id}, username={current_user.username}")
     
     return UserRead(
         id=current_user.id,
-        email=current_user.email
+        username=current_user.username,
+        email=current_user.email,
+        birth_year=current_user.birth_year,
+        gender=current_user.gender,
+        interests=current_user.interests
     )
 
 
