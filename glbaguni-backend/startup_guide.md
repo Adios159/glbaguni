@@ -29,7 +29,7 @@ for var in required:
 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload
 
 # 또는 다른 포트 사용
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8001 --reload
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload
 ```
 
 ### 3. 프론트엔드 서버 실행 (새 터미널)
@@ -55,10 +55,10 @@ npm run dev
 netstat -an | grep :8003
 
 # 다른 포트 사용
-python -m uvicorn backend.main:app --port 8004 --reload
+python -m uvicorn backend.main:app --port 8003 --reload
 
 # 프론트엔드 환경변수도 수정
-echo "VITE_API_BASE=http://127.0.0.1:8004" > ../glbaguni-frontend/.env.local
+echo "VITE_API_BASE=http://127.0.0.1:8003" > ../glbaguni-frontend/.env.local
 ```
 
 ### import 에러 발생 시
@@ -205,9 +205,9 @@ else
     echo "⚠️ 문제 발견, 자동 수정 시도..."
     
     # 포트 변경
-    echo "VITE_API_BASE=http://127.0.0.1:8004" > ../glbaguni-frontend/.env.local
+    echo "VITE_API_BASE=http://127.0.0.1:8003" > ../glbaguni-frontend/.env.local
     
     # 서버 재시작
-    python -m uvicorn backend.main:app --port 8004 --reload
+    python -m uvicorn backend.main:app --port 8003 --reload
 fi
 ``` 

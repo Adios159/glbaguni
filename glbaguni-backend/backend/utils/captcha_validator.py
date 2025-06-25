@@ -129,7 +129,7 @@ class CaptchaResponse(BaseModel):
 class CaptchaValidator:
     """CAPTCHA 검증 클래스"""
     
-    def __init__(self, config: CaptchaConfig = None):
+    def __init__(self, config: Optional[CaptchaConfig] = None):
         self.config = config or CaptchaConfig()
         
         # 활성 챌린지 저장소 (실제 환경에서는 Redis 사용 권장)
@@ -494,16 +494,23 @@ class CaptchaValidator:
 class CaptchaMiddleware:
     """CAPTCHA 검증 미들웨어"""
     
-    def __init__(self, config: CaptchaConfig = None):
+    def __init__(self, config: Optional[CaptchaConfig] = None):
         self.validator = CaptchaValidator(config)
         self.config = config or CaptchaConfig()
-        
-        # 정리 작업 스케줄링
-        asyncio.create_task(self._cleanup_task())
+        self._cleanup_task: Optional[asyncio.Task] = None
         
         logger.info("🤖 CAPTCHA 미들웨어 활성화")
     
-    async def _cleanup_task(self):
+    def start_cleanup_task(self):
+        """정리 작업 시작 (이벤트 루프가 실행된 후 호출)"""
+        if self._cleanup_task is None:
+            try:
+                self._cleanup_task = asyncio.create_task(self._cleanup_background())
+                logger.info("🧹 CAPTCHA 정리 작업 시작")
+            except RuntimeError:
+                logger.warning("이벤트 루프가 실행되지 않아 정리 작업을 시작할 수 없습니다")
+    
+    async def _cleanup_background(self):
         """백그라운드 정리 작업"""
         while True:
             try:
@@ -521,10 +528,10 @@ captcha_middleware = CaptchaMiddleware(default_captcha_config)
 
 # 설정 함수들
 def configure_captcha(
-    recaptcha_secret_key: str = None,
-    recaptcha_site_key: str = None,
+    recaptcha_secret_key: Optional[str] = None,
+    recaptcha_site_key: Optional[str] = None,
     protection_level: ProtectionLevel = ProtectionLevel.MEDIUM,
-    protected_endpoints: Dict[str, ProtectionLevel] = None
+    protected_endpoints: Optional[Dict[str, ProtectionLevel]] = None
 ):
     """CAPTCHA 설정 업데이트"""
     global default_captcha_config, captcha_validator, captcha_middleware

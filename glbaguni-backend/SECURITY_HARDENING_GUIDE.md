@@ -40,7 +40,7 @@ echo "SECRET_KEY=$SECRET_KEY" >> .env
 ```python
 # 개선된 CORS 설정 (이미 적용됨)
 CORS 설정을 구체적인 도메인으로 제한:
-- 개발: http://localhost:3000, http://127.0.0.1:3000
+- 개발: http://localhost:5173, http://127.0.0.1:5173
 - 프로덕션: https://yourdomain.com
 ```
 

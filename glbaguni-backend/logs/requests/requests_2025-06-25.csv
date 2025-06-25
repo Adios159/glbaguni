@@ -1,0 +1,1 @@
+timestamp,datetime_iso,client_ip,real_ip,forwarded_for,method,endpoint,query_params,user_agent,referer,accept_language,content_type,content_length,status_code,response_time,response_size,is_whitelisted,is_blocked,block_reason,threat_level,country,city,user_id,session_id,request_id

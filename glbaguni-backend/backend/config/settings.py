@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     secret_key: str = Field(default="glbaguni-default-secret-key-change-in-production", description="애플리케이션 비밀 키")
     api_key_header: str = Field(default="X-API-Key", description="API 키 헤더명")
     allowed_origins: List[str] = Field(
-        default=["http://localhost:3000", "http://127.0.0.1:3000"],
+        default=["http://localhost:5173", "http://127.0.0.1:5173"],
         description="CORS 허용 오리진"
     )
 

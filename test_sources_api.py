@@ -9,7 +9,7 @@ import json
 
 def test_sources_api():
     """Sources API를 테스트합니다."""
-    base_url = "http://localhost:8000"
+    base_url = "http://localhost:8003"
     
     print("🔍 Sources API 테스트 시작...\n")
     

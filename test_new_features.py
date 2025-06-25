@@ -6,7 +6,7 @@ import requests
 import json
 import time
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8003"
 
 def test_health():
     """Test health endpoint."""

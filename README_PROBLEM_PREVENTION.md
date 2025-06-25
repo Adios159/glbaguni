@@ -123,10 +123,10 @@ npm run dev
 ### 1. 포트 충돌
 ```bash
 # 다른 포트로 백엔드 실행
-python -m uvicorn backend.main:app --port 8004 --reload
+python -m uvicorn backend.main:app --port 8003 --reload
 
 # 프론트엔드 환경변수 수정
-echo "VITE_API_BASE=http://127.0.0.1:8004" > .env.local
+echo "VITE_API_BASE=http://127.0.0.1:8003" > .env.local
 ```
 
 ### 2. Import 에러

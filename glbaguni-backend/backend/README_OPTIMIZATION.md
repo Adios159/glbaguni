@@ -147,7 +147,7 @@ async def new_endpoint(request: Request):
 
 ```bash
 # 서버 상태 확인
-curl http://localhost:8001/health
+curl http://localhost:8003/health
 
 # 응답 예시
 {

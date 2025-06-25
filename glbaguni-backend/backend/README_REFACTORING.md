@@ -194,10 +194,10 @@ OPENAI_MODEL=gpt-3.5-turbo
 ### 3. API 테스트
 ```bash
 # 헬스 체크
-curl http://localhost:8001/health
+curl http://localhost:8003/health
 
 # RSS 요약
-curl -X POST http://localhost:8001/summarize \
+curl -X POST http://localhost:8003/summarize \
   -H "Content-Type: application/json" \
   -d '{
     "rss_urls": ["https://rss.cnn.com/rss/edition.rss"],
@@ -206,7 +206,7 @@ curl -X POST http://localhost:8001/summarize \
   }'
 
 # 텍스트 요약
-curl -X POST http://localhost:8001/summarize-text \
+curl -X POST http://localhost:8003/summarize-text \
   -H "Content-Type: application/json" \
   -d '{
     "text": "요약할 긴 텍스트...",
@@ -270,13 +270,13 @@ grep "완료\|✅" logs/glbaguni_main.log
 ### 헬스 체크 모니터링
 ```bash
 # 간단한 상태 확인
-curl -s http://localhost:8001/health | jq .status
+curl -s http://localhost:8003/health | jq .status
 
 # 상세 상태 확인
-curl -s http://localhost:8001/health | jq .
+curl -s http://localhost:8003/health | jq .
 
 # 컴포넌트 상태 확인
-curl -s http://localhost:8001/debug | jq .components_status
+curl -s http://localhost:8003/debug | jq .components_status
 ```
 
 ## 🎯 권장 운영 방식

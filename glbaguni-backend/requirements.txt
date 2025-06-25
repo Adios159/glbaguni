@@ -41,8 +41,9 @@ lxml==4.9.3
 sqlalchemy==2.0.23
 alembic==1.13.1
 
-# ===== System Monitoring =====
+# ===== System Monitoring & Memory Management =====
 psutil>=5.9.0
+tracemalloc  # Built-in Python module for memory tracking
 
 # ===== Machine Learning & Recommendations =====
 scikit-learn>=1.3.0

@@ -23,7 +23,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
-import uvloop
+
+try:
+    import uvloop
+except ImportError:
+    uvloop = None
 
 try:
     from utils.logging_config import get_logger

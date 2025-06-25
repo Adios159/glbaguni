@@ -198,110 +198,97 @@ class RobustComponentManager:
         now = datetime.now()
         total = len(self.components)
         initialized = sum(1 for c in self.components.values() if c.initialized)
-        failed = sum(1 for c in self.components.values() if c.error and not c.initialized)
-        critical_failed = sum(1 for c in self.components.values() if c.error and not c.initialized and c.is_critical)
+        failed = total - initialized
+        critical_failed = sum(1 for c in self.components.values() if not c.initialized and c.is_critical)
         
-        # 전체 시스템 상태 결정
-        system_status = "healthy"
-        if critical_failed > 0:
-            system_status = "critical"
-        elif failed > 0:
-            system_status = "degraded"
-        elif initialized < total:
-            system_status = "warning"
+        component_details = {}
+        for name, status in self.components.items():
+            component_details[name] = {
+                "initialized": status.initialized,
+                "is_critical": status.is_critical,
+                "error": status.error,
+                "init_time": status.init_time,
+                "retry_count": status.retry_count,
+                "last_attempt": status.last_attempt.isoformat() if status.last_attempt else None
+            }
         
-        report = {
-            "system_status": system_status,
+        return {
             "summary": {
                 "total_components": total,
                 "initialized_components": initialized,
                 "failed_components": failed,
                 "critical_failed": critical_failed,
                 "success_rate": round((initialized / total * 100) if total > 0 else 0, 1),
-                "initialization_complete": self.initialization_complete,
+                "initialization_complete": self.initialization_complete
             },
-            "components": {}
+            "components": component_details,
+            "timestamp": now.isoformat()
         }
-        
-        for name, status in self.components.items():
-            report["components"][name] = {
-                "name": name,
-                "initialized": status.initialized,
-                "is_critical": status.is_critical,
-                "error": status.error,
-                "init_time": status.init_time,
-                "retry_count": status.retry_count,
-                "last_attempt": status.last_attempt.isoformat() if status.last_attempt else None,
-                "status": "ok" if status.initialized else ("failed" if status.error else "pending")
-            }
-        
-        return report
     
     async def perform_health_checks(self) -> Dict[str, bool]:
-        """모든 컴포넌트 헬스체크 수행"""
+        """모든 컴포넌트에 대해 헬스체크 수행"""
         health_results = {}
         
         for name, status in self.components.items():
             if status.initialized and status.health_check_func:
                 try:
-                    is_healthy = await self._perform_health_check(status.health_check_func, status.instance)
-                    health_results[name] = is_healthy
-                    if not is_healthy:
+                    health_ok = await self._perform_health_check(status.health_check_func, status.instance)
+                    health_results[name] = health_ok
+                    if not health_ok:
                         logger.warning(f"⚠️ {name} 헬스체크 실패")
                 except Exception as e:
+                    logger.error(f"❌ {name} 헬스체크 오류: {e}")
                     health_results[name] = False
-                    logger.warning(f"⚠️ {name} 헬스체크 오류: {e}")
             else:
                 health_results[name] = status.initialized
-                
+        
         return health_results
     
     async def cleanup(self):
-        """리소스 정리 (강화버전)"""
-        logger.info("🔄 컴포넌트 정리 시작...")
+        """모든 컴포넌트 정리"""
+        logger.info("🧹 컴포넌트 정리 시작...")
         
-        # 각 컴포넌트 개별 정리
         for name, status in self.components.items():
             if status.instance:
                 try:
                     await self._cleanup_component_instance(status.instance)
-                    logger.info(f"✅ {name} 정리 완료")
+                    logger.debug(f"✅ {name} 정리 완료")
                 except Exception as e:
-                    logger.warning(f"⚠️ {name} 정리 실패: {e}")
+                    logger.warning(f"⚠️ {name} 정리 중 오류: {e}")
         
-        # HTTP 클라이언트 정리
         if self.http_client:
             try:
                 await self.http_client.aclose()
-                logger.info("✅ HTTP 클라이언트 종료 완료")
+                logger.info("✅ HTTP 클라이언트 정리 완료")
             except Exception as e:
-                logger.warning(f"⚠️ HTTP 클라이언트 종료 실패: {e}")
+                logger.warning(f"⚠️ HTTP 클라이언트 정리 중 오류: {e}")
+        
+        self.components.clear()
+        self.initialization_complete = False
+        logger.info("✅ 컴포넌트 정리 완료")
 
 
-# 전역 컴포넌트 관리자 인스턴스 (강화버전)
-component_manager = RobustComponentManager(max_retries=2, retry_delay=1.0)
+# 전역 컴포넌트 관리자 인스턴스
+component_manager = RobustComponentManager()
 
 
-# === 헬스체크 함수들 ===
 async def check_fetcher_health(instance) -> bool:
-    """Fetcher 헬스체크 - ArticleFetcher 실제 메서드에 맞춤"""
+    """향상된 Fetcher 헬스체크"""
     try:
-        # 1. 실제 ArticleFetcher 메서드들 확인
-        required_methods = ['fetch_html_article', 'fetch_rss_articles', 'fetch_multiple_sources']
+        required_methods = ['fetch_articles', 'fetch_single_article']
+        required_attrs = ['timeout', 'max_retries']
         
-        for method_name in required_methods:
-            if not hasattr(instance, method_name):
-                logger.debug(f"❌ Fetcher: {method_name} 메서드 없음")
-                return False
-            
-            if not callable(getattr(instance, method_name)):
-                logger.debug(f"❌ Fetcher: {method_name}가 호출 가능하지 않음")
+        # 필수 메서드 확인
+        for method in required_methods:
+            if not (hasattr(instance, method) and callable(getattr(instance, method))):
+                logger.debug(f"❌ Fetcher: 필수 메서드 {method} 없음")
                 return False
         
-        # 2. session 속성 확인 (HTTP 요청을 위해 필요)
-        if not hasattr(instance, 'session'):
-            logger.debug("❌ Fetcher: session 속성 없음")
-            return False
+        # 필수 속성 확인
+        for attr in required_attrs:
+            if not hasattr(instance, attr):
+                logger.debug(f"❌ Fetcher: 필수 속성 {attr} 없음")
+                return False
         
         logger.debug("✅ Fetcher: 모든 필수 메서드 및 속성 확인됨")
         return True
@@ -325,6 +312,31 @@ async def check_notifier_health(instance) -> bool:
         return False
 
 
+async def init_memory_manager():
+    """메모리 관리자 초기화"""
+    try:
+        from utils.memory_manager import initialize_memory_manager, MemoryConfig
+        
+        # 메모리 관리 설정
+        memory_config = MemoryConfig(
+            monitoring_interval_seconds=60,    # 1분마다 모니터링
+            cleanup_interval_seconds=300,      # 5분마다 정리
+            warning_threshold=70.0,            # 70% 경고
+            critical_threshold=85.0,           # 85% 심각
+            cleanup_threshold=80.0,            # 80%에서 정리 시작
+            max_cache_size=1000,               # 최대 캐시 크기
+            enable_alerts=True                 # 알림 활성화
+        )
+        
+        await initialize_memory_manager(memory_config)
+        logger.info("✅ 메모리 관리자 초기화 완료")
+        return True
+        
+    except Exception as e:
+        logger.warning(f"⚠️ 메모리 관리자 초기화 실패: {e}")
+        return False
+
+
 async def initialize_all_components():
     """모든 컴포넌트 안전 초기화 (강화버전)"""
     start_time = time.time()
@@ -334,19 +346,22 @@ async def initialize_all_components():
         # 1. HTTP 클라이언트 먼저 초기화
         await component_manager.initialize_http_client()
         
-        # 2. 데이터베이스 초기화
+        # 2. 메모리 관리자 초기화
+        await init_memory_manager()
+        
+        # 3. 데이터베이스 초기화
         await safe_init_database()
         
-        # 3. 핵심 컴포넌트들 초기화 (is_critical=True)
+        # 4. 핵심 컴포넌트들 초기화 (is_critical=True)
         await init_core_components()
         
-        # 4. 선택적 컴포넌트들 초기화
+        # 5. 선택적 컴포넌트들 초기화
         await init_optional_components()
         
-        # 5. 초기화 완료 표시
+        # 6. 초기화 완료 표시
         component_manager.initialization_complete = True
         
-        # 6. 상태 리포트
+        # 7. 상태 리포트
         elapsed = time.time() - start_time
         report = component_manager.get_detailed_status_report()
         
@@ -501,4 +516,13 @@ async def perform_component_health_checks():
 
 async def cleanup_components():
     """컴포넌트 정리 (강화버전)"""
+    try:
+        # 메모리 관리자 정리
+        from utils.memory_manager import cleanup_memory_manager
+        await cleanup_memory_manager()
+        logger.info("✅ 메모리 관리자 정리 완료")
+    except Exception as e:
+        logger.warning(f"⚠️ 메모리 관리자 정리 실패: {e}")
+    
+    # 나머지 컴포넌트 정리
     await component_manager.cleanup() 

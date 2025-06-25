@@ -414,7 +414,7 @@ async def test_endpoint():
     """개선된 테스트 엔드포인트"""
     return {
         "message": "백엔드 서버가 정상 작동 중입니다!",
-        "port": 8001,
+        "port": 8003,
         "timestamp": datetime.now().isoformat(),
         "features_enabled": {
             "security": SECURITY_AVAILABLE,
@@ -615,6 +615,6 @@ async def save_to_history(user_id: str, summaries: List[ArticleSummary], db: Ses
 if __name__ == "__main__":
     print("⚠️  경고: 이 파일은 백업용입니다. 직접 실행하지 마세요.")
     print("💡 대신 다음 명령어를 사용하세요:")
-    print("   uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload")
+    print("   uvicorn backend.main:app --host 0.0.0.0 --port 8003 --reload")
     import sys
     sys.exit(1)

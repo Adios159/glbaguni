@@ -150,7 +150,7 @@ engine = create_engine(DATABASE_URL, echo=False)
 # CORS 설정에 보안 헤더 추가 권장
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # 구체적 도메인 지정
+    allow_origins=["http://localhost:5173"],  # 구체적 도메인 지정
     allow_credentials=True,
     allow_methods=["GET", "POST"],  # 필요한 메서드만 허용
     allow_headers=["*"],

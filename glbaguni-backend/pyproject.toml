@@ -71,4 +71,14 @@ ignore_missing_imports = true
 exclude = [
     "tests/",
     "__pycache__/",
-] 
+]
+
+[tool.pyright]
+include = ["backend"]
+exclude = ["tests", "**/__pycache__"]
+reportMissingImports = "warning"
+reportOptionalMemberAccess = "warning"
+reportArgumentType = "warning"
+reportReturnType = "warning"
+pythonVersion = "3.10"
+typeCheckingMode = "basic" 

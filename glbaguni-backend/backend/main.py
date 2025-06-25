@@ -177,7 +177,7 @@ try:
     cors_origins = settings.allowed_origins
 except Exception:
     # 설정 로드 실패 시 안전한 기본값 사용
-    cors_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    cors_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -191,7 +191,10 @@ app.add_middleware(
 app.middleware("http")(get_request_logger_middleware())
 
 # ===== IP 차단 미들웨어 설정 및 등록 =====
-from utils.ip_blocker import configure_ip_blocker
+try:
+    from utils.ip_blocker import configure_ip_blocker
+except ImportError:
+    from backend.utils.ip_blocker import configure_ip_blocker
 try:
     from config.settings import Settings
     settings = Settings()
@@ -243,6 +246,7 @@ def register_routers():
         ("captcha", "CAPTCHA 및 봇 방지", False),  # 선택적 라우터
         ("ip_management", "IP 차단 관리", False),  # 선택적 라우터
         ("request_logs", "요청 로그 분석", False),  # 선택적 라우터
+        ("memory", "메모리 관리", False),  # 선택적 라우터
     ]
 
     current_dir = os.path.dirname(os.path.abspath(__file__))

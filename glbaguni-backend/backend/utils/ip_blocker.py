@@ -14,11 +14,20 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Set, Tuple, Any
+from typing import Dict, List, Optional, Set, Tuple, Any, Union
 import ipaddress
 import re
 
-import redis
+# Redis 선택적 import
+try:
+    import redis  # type: ignore
+    from redis import Redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    redis = None  # type: ignore
+    Redis = None  # type: ignore
+
 from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -202,51 +211,47 @@ class RequestAnalyzer:
         # 통계 업데이트
         stats = self.ip_stats[ip]
         stats["total_requests"] += 1
+        stats["last_request"] = now
         stats["user_agents"].add(pattern.user_agent)
         stats["endpoints"].add(pattern.endpoint)
-        stats["last_request"] = now
         
         if stats["first_request"] == 0:
             stats["first_request"] = now
         
-        # 인증 실패 추적
-        if pattern.endpoint.startswith("/auth/") and pattern.status_code == 401:
+        # 상태 코드별 처리
+        if pattern.status_code == 401:
             stats["failed_auths"] += 1
-        
-        # CAPTCHA 실패 추적
-        if pattern.endpoint.startswith("/captcha/") and pattern.status_code == 403:
-            stats["captcha_failures"] += 1
+        elif pattern.status_code == 429:  # Rate limit
+            stats["rapid_requests"] += 1
         
         # 위협 분석
         return self._analyze_threats(ip, pattern, stats)
     
     def _analyze_threats(self, ip: str, pattern: RequestPattern, stats: Dict[str, Any]) -> Tuple[bool, BlockReason, ThreatLevel]:
-        """위협 수준 분석"""
+        """위협 분석"""
         recent_requests = len(self.request_history[ip])
         
-        # 1. 인증 실패 과다
+        # 1. 연속 인증 실패
         if stats["failed_auths"] >= self.config.failed_auth_threshold:
             return True, BlockReason.FAILED_AUTH_ATTEMPTS, ThreatLevel.HIGH
         
-        # 2. CAPTCHA 실패 과다
-        if stats["captcha_failures"] >= self.config.captcha_failure_threshold:
-            return True, BlockReason.CAPTCHA_FAILURES, ThreatLevel.MEDIUM
-        
-        # 3. 빠른 연속 요청
+        # 2. 빠른 요청 (Rate limiting)
         if recent_requests >= self.config.rapid_request_threshold:
-            time_span = time.time() - self.request_history[ip][0].timestamp
-            if time_span < 60:  # 1분 내에 너무 많은 요청
-                return True, BlockReason.RATE_LIMIT_ABUSE, ThreatLevel.HIGH
+            return True, BlockReason.RATE_LIMIT_ABUSE, ThreatLevel.MEDIUM
         
-        # 4. 엔드포인트 스캔
+        # 3. 다양한 User-Agent 사용 (봇 의심)
+        if len(stats["user_agents"]) >= self.config.different_ua_threshold:
+            return True, BlockReason.USER_AGENT_VIOLATIONS, ThreatLevel.MEDIUM
+        
+        # 4. CAPTCHA 반복 실패
+        if stats["captcha_failures"] >= self.config.captcha_failure_threshold:
+            return True, BlockReason.CAPTCHA_FAILURES, ThreatLevel.HIGH
+        
+        # 5. 다양한 엔드포인트 접근 (스캔 의심)
         if len(stats["endpoints"]) >= self.config.endpoint_scan_threshold:
             return True, BlockReason.ENDPOINT_SCANNING, ThreatLevel.MEDIUM
         
-        # 5. 다양한 User-Agent 사용 (봇 의심)
-        if len(stats["user_agents"]) >= self.config.different_ua_threshold:
-            return True, BlockReason.SUSPICIOUS_PATTERNS, ThreatLevel.MEDIUM
-        
-        # 6. 404 에러 과다 (스캔 의심)
+        # 6. 404 에러 패턴 (엔드포인트 탐색)
         recent_404s = sum(1 for req in self.request_history[ip] if req.status_code == 404)
         if recent_404s >= 15:
             return True, BlockReason.ENDPOINT_SCANNING, ThreatLevel.MEDIUM
@@ -255,7 +260,7 @@ class RequestAnalyzer:
         if recent_requests >= self.config.suspicious_request_count:
             return True, BlockReason.SUSPICIOUS_PATTERNS, ThreatLevel.LOW
         
-        return False, None, ThreatLevel.LOW
+        return False, BlockReason.SUSPICIOUS_PATTERNS, ThreatLevel.LOW
 
 
 class IPBlockerStorage:
@@ -264,15 +269,21 @@ class IPBlockerStorage:
     def __init__(self, config: IPBlockerConfig):
         self.config = config
         self.memory_storage: Dict[str, BlockedIP] = {}
-        self.redis_client = None
+        self.redis_client: Optional[Union[Any, None]] = None  # Redis client 타입
         
-        if config.redis_enabled:
+        if config.redis_enabled and REDIS_AVAILABLE:
             self._connect_redis()
+        elif config.redis_enabled and not REDIS_AVAILABLE:
+            logger.warning("⚠️ Redis가 설치되지 않았습니다. 메모리 모드로 실행합니다.")
     
     def _connect_redis(self):
         """Redis 연결"""
+        if not REDIS_AVAILABLE or not redis:
+            logger.warning("⚠️ Redis 모듈을 사용할 수 없습니다.")
+            return
+            
         try:
-            self.redis_client = redis.Redis(
+            self.redis_client = redis.Redis(  # type: ignore
                 host=self.config.redis_host,
                 port=self.config.redis_port,
                 db=self.config.redis_db,
@@ -280,7 +291,7 @@ class IPBlockerStorage:
                 decode_responses=True,
                 socket_connect_timeout=5
             )
-            self.redis_client.ping()
+            self.redis_client.ping()  # type: ignore
             logger.info("✅ IP Blocker Redis 연결 성공")
         except Exception as e:
             logger.warning(f"⚠️ IP Blocker Redis 연결 실패, 메모리 모드 사용: {e}")
@@ -403,7 +414,7 @@ class IPBlockerStorage:
 class IPBlockerMiddleware:
     """IP 차단 미들웨어"""
     
-    def __init__(self, config: IPBlockerConfig = None):
+    def __init__(self, config: Optional[IPBlockerConfig] = None):
         self.config = config or IPBlockerConfig()
         self.analyzer = RequestAnalyzer(self.config)
         self.storage = IPBlockerStorage(self.config)
@@ -421,7 +432,7 @@ class IPBlockerMiddleware:
         # 정리 작업 플래그 (안전하게 처리)
         self._cleanup_task_started = False
         
-        logger.info(f"🛡️ IP 차단 미들웨어 활성화 (Redis: {'사용' if self.config.redis_enabled else '미사용'})")
+        logger.info(f"🛡️ IP 차단 미들웨어 활성화 (Redis: {'사용' if self.config.redis_enabled and REDIS_AVAILABLE else '미사용'})")
     
     def get_client_ip(self, request: Request) -> str:
         """클라이언트 IP 추출"""
@@ -450,58 +461,49 @@ class IPBlockerMiddleware:
                     network = ipaddress.ip_network(whitelist_ip, strict=False)
                     if ipaddress.ip_address(ip) in network:
                         return True
-        except Exception:
+        except ValueError:
+            # IP 주소 파싱 실패 시 화이트리스트 통과하지 않음
             pass
         
         return False
     
     def is_protected_endpoint(self, path: str) -> bool:
-        """보호 대상 엔드포인트 확인"""
+        """보호된 엔드포인트 확인"""
         for pattern in self.config.protected_endpoints:
-            if re.match(pattern, path):
+            if re.search(pattern, path):
                 return True
         return False
     
     async def __call__(self, request: Request, call_next):
-        """미들웨어 실행"""
-        if not self.config.enabled:
-            return await call_next(request)
-        
+        """미들웨어 메인 처리"""
         start_time = time.time()
-        client_ip = self.get_client_ip(request)
         self.stats["total_requests"] += 1
         
         try:
-            # 화이트리스트 확인
-            if self.is_whitelisted(client_ip):
+            if not self.config.enabled:
                 return await call_next(request)
             
-            # 차단 여부 확인
-            is_blocked, blocked_info = await self.storage.is_blocked(client_ip)
-            if is_blocked:
+            ip = self.get_client_ip(request)
+            
+            # 화이트리스트 확인
+            if self.is_whitelisted(ip):
+                return await call_next(request)
+            
+            # 이미 차단된 IP 확인
+            is_blocked, blocked_info = await self.storage.is_blocked(ip)
+            if is_blocked and blocked_info:
                 self.stats["blocked_requests"] += 1
                 
-                logger.warning(
-                    f"🚫 차단된 IP 접근 시도: {client_ip} | "
-                    f"경로: {request.url.path} | "
-                    f"이유: {blocked_info.reason.value}"
-                )
-                
+                remaining_time = int(blocked_info.blocked_until - time.time())
                 return JSONResponse(
                     status_code=403,
                     content={
-                        "error": "Forbidden",
-                        "message": "귀하의 IP가 임시 차단되었습니다.",
-                        "reason": "비정상적인 요청 패턴이 감지되었습니다.",
+                        "error": "IP Blocked",
+                        "message": f"귀하의 IP가 차단되었습니다. 이유: {blocked_info.reason.value}",
                         "blocked_until": datetime.fromtimestamp(blocked_info.blocked_until).isoformat(),
-                        "contact": "문제가 지속되면 관리자에게 문의하세요.",
-                        "ip": client_ip
-                    },
-                    headers={
-                        "X-Blocked-IP": client_ip,
-                        "X-Block-Reason": blocked_info.reason.value,
-                        "X-Block-Level": blocked_info.threat_level.value,
-                        "Retry-After": str(max(1, int(blocked_info.blocked_until - time.time())))
+                        "remaining_seconds": remaining_time,
+                        "threat_level": blocked_info.threat_level.value,
+                        "block_count": blocked_info.block_count
                     }
                 )
             
@@ -509,75 +511,91 @@ class IPBlockerMiddleware:
             response = await call_next(request)
             response_time = time.time() - start_time
             
-            # 보호 대상 엔드포인트인 경우 패턴 분석
-            if self.is_protected_endpoint(request.url.path):
+            # 보호된 엔드포인트만 분석
+            if self.is_protected_endpoint(str(request.url.path)):
                 self.stats["analyzed_requests"] += 1
                 
+                # 요청 패턴 생성
                 pattern = RequestPattern(
-                    ip=client_ip,
+                    ip=ip,
                     timestamp=start_time,
-                    endpoint=request.url.path,
+                    endpoint=str(request.url.path),
                     method=request.method,
                     user_agent=request.headers.get("user-agent", ""),
                     status_code=response.status_code,
                     response_time=response_time
                 )
                 
-                # 비정상 패턴 분석
+                # 패턴 분석
                 should_block, reason, threat_level = self.analyzer.analyze_request(pattern)
                 
                 if should_block:
-                    # 차단 처리
-                    await self._block_ip_automatically(client_ip, reason, threat_level, pattern)
+                    await self._block_ip_automatically(ip, reason, threat_level, pattern)
+                    self.stats["auto_blocks"] += 1
             
             return response
             
         except Exception as e:
             logger.error(f"IP 차단 미들웨어 오류: {e}")
-            # 오류 발생시 요청 허용
+            # 오류 발생 시에도 요청은 계속 처리
             return await call_next(request)
+        
+        finally:
+            # 정리 작업 시작 (한 번만)
+            self._start_cleanup_task_if_needed()
     
     async def _block_ip_automatically(self, ip: str, reason: BlockReason, threat_level: ThreatLevel, pattern: RequestPattern):
-        """자동 IP 차단"""
-        now = time.time()
-        
-        # 차단 시간 결정
-        block_duration = {
-            ThreatLevel.LOW: self.config.low_threat_block_time,
-            ThreatLevel.MEDIUM: self.config.medium_threat_block_time,
-            ThreatLevel.HIGH: self.config.high_threat_block_time,
-            ThreatLevel.CRITICAL: self.config.critical_threat_block_time
-        }[threat_level]
-        
-        # 기존 차단 정보 확인
-        is_blocked, existing_block = await self.storage.is_blocked(ip)
-        
-        if is_blocked:
-            # 기존 차단 연장 및 카운트 증가
-            existing_block.block_count += 1
-            existing_block.blocked_until = now + (block_duration * existing_block.block_count)  # 반복 시 더 오래 차단
-            existing_block.last_violation = f"{reason.value} at {pattern.endpoint}"
-            existing_block.user_agents.add(pattern.user_agent)
-            existing_block.endpoints_accessed.add(pattern.endpoint)
-            blocked_ip = existing_block
-        else:
-            # 새로운 차단
-            blocked_ip = BlockedIP(
-                ip=ip,
-                reason=reason,
-                threat_level=threat_level,
-                blocked_at=now,
-                blocked_until=now + block_duration,
-                last_violation=f"{reason.value} at {pattern.endpoint}",
-                user_agents={pattern.user_agent},
-                endpoints_accessed={pattern.endpoint}
-            )
-        
-        await self.storage.block_ip(blocked_ip)
-        self.stats["auto_blocks"] += 1
+        """IP 자동 차단"""
+        try:
+            # 차단 시간 결정
+            block_duration = {
+                ThreatLevel.LOW: self.config.low_threat_block_time,
+                ThreatLevel.MEDIUM: self.config.medium_threat_block_time,
+                ThreatLevel.HIGH: self.config.high_threat_block_time,
+                ThreatLevel.CRITICAL: self.config.critical_threat_block_time,
+            }.get(threat_level, self.config.medium_threat_block_time)
+            
+            now = time.time()
+            
+            # 기존 차단 정보 확인
+            _, existing_block = await self.storage.is_blocked(ip)
+            
+            if existing_block is not None:
+                # 기존 차단이 있으면 카운트 증가
+                blocked_ip = BlockedIP(
+                    ip=ip,
+                    reason=reason,
+                    threat_level=threat_level,
+                    blocked_at=now,
+                    blocked_until=now + block_duration,
+                    block_count=existing_block.block_count + 1,
+                    request_count=existing_block.request_count + 1,
+                    last_violation=f"{pattern.method} {pattern.endpoint}",
+                    user_agents=existing_block.user_agents | {pattern.user_agent},
+                    endpoints_accessed=existing_block.endpoints_accessed | {pattern.endpoint}
+                )
+            else:
+                # 새로운 차단
+                blocked_ip = BlockedIP(
+                    ip=ip,
+                    reason=reason,
+                    threat_level=threat_level,
+                    blocked_at=now,
+                    blocked_until=now + block_duration,
+                    block_count=1,
+                    request_count=1,
+                    last_violation=f"{pattern.method} {pattern.endpoint}",
+                    user_agents={pattern.user_agent},
+                    endpoints_accessed={pattern.endpoint}
+                )
+            
+            await self.storage.block_ip(blocked_ip)
+            
+        except Exception as e:
+            logger.error(f"IP 자동 차단 처리 중 오류: {e}")
     
     async def block_ip_manually(self, ip: str, reason: str = "Manual block", duration_hours: int = 24) -> bool:
-        """수동 IP 차단"""
+        """IP 수동 차단"""
         try:
             now = time.time()
             blocked_ip = BlockedIP(
@@ -594,86 +612,66 @@ class IPBlockerMiddleware:
             return True
             
         except Exception as e:
-            logger.error(f"수동 IP 차단 실패: {e}")
+            logger.error(f"IP 수동 차단 중 오류: {e}")
             return False
     
     async def unblock_ip_manually(self, ip: str) -> bool:
-        """수동 IP 차단 해제"""
+        """IP 수동 차단 해제"""
         try:
             await self.storage.unblock_ip(ip)
             return True
         except Exception as e:
-            logger.error(f"수동 IP 차단 해제 실패: {e}")
+            logger.error(f"IP 수동 차단 해제 중 오류: {e}")
             return False
     
     async def get_stats(self) -> Dict[str, Any]:
-        """통계 정보 반환"""
+        """통계 조회"""
         blocked_ips = await self.storage.get_blocked_ips()
-        runtime = time.time() - self.stats["start_time"]
-        
         return {
             **self.stats,
-            "runtime_seconds": runtime,
-            "currently_blocked_ips": len(blocked_ips),
-            "requests_per_minute": (self.stats["total_requests"] / max(runtime / 60, 1)),
-            "block_rate": (self.stats["blocked_requests"] / max(self.stats["total_requests"], 1)) * 100,
-            "blocked_ips_info": [ip.to_dict() for ip in blocked_ips[:10]]  # 최근 10개만
+            "blocked_ips_count": len(blocked_ips),
+            "uptime_seconds": int(time.time() - self.stats["start_time"]),
+            "redis_enabled": self.config.redis_enabled and REDIS_AVAILABLE and self.storage.redis_client is not None
         }
     
     async def _cleanup_task(self):
-        """만료된 데이터 정리 작업"""
+        """만료된 차단 정리 작업"""
         while True:
             try:
-                # 만료된 차단 정리
-                await self.storage.get_blocked_ips()  # 내부적으로 만료된 것들 정리
-                
-                # 요청 히스토리 정리
-                now = time.time()
-                window_start = now - (self.config.analysis_window_minutes * 60)
-                
-                for ip in list(self.analyzer.request_history.keys()):
-                    history = self.analyzer.request_history[ip]
-                    while history and history[0].timestamp < window_start:
-                        history.popleft()
-                    
-                    # 빈 히스토리 제거
-                    if not history:
-                        del self.analyzer.request_history[ip]
-                        if ip in self.analyzer.ip_stats:
-                            del self.analyzer.ip_stats[ip]
-                
-                await asyncio.sleep(300)  # 5분마다 정리
-                
+                await asyncio.sleep(300)  # 5분마다 실행
+                await self.storage.get_blocked_ips()  # 이 메서드에서 만료된 것들을 자동 정리
+            except asyncio.CancelledError:
+                break
             except Exception as e:
-                logger.error(f"IP 차단 정리 작업 오류: {e}")
-                await asyncio.sleep(60)
-
+                logger.error(f"정리 작업 중 오류: {e}")
+                await asyncio.sleep(60)  # 오류 시 1분 후 재시도
+    
     def _start_cleanup_task_if_needed(self):
-        """필요시 정리 작업 시작"""
+        """정리 작업 시작 (필요한 경우)"""
         if not self._cleanup_task_started:
+            self._cleanup_task_started = True
             try:
-                import asyncio
-                loop = asyncio.get_running_loop()
-                asyncio.create_task(self._cleanup_task())
-                self._cleanup_task_started = True
-                logger.info("🔄 IP 차단 정리 작업 시작")
-            except RuntimeError:
-                # 이벤트 루프가 없는 경우 나중에 시작
-                pass
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # 백그라운드 태스크로 시작
+                    asyncio.create_task(self._cleanup_task())
+            except Exception as e:
+                logger.warning(f"정리 작업 시작 실패: {e}")
+                self._cleanup_task_started = False
 
 
-# 전역 인스턴스 (지연 생성)
-default_ip_blocker_config = IPBlockerConfig()
-ip_blocker_middleware = None
+# 전역 미들웨어 인스턴스
+_global_ip_blocker: Optional[IPBlockerMiddleware] = None
+
 
 def get_ip_blocker_middleware():
-    """IP 차단 미들웨어 인스턴스를 안전하게 가져오기"""
-    global ip_blocker_middleware
-    if ip_blocker_middleware is None:
-        ip_blocker_middleware = IPBlockerMiddleware(default_ip_blocker_config)
-    return ip_blocker_middleware
+    """전역 IP 차단 미들웨어 인스턴스 반환"""
+    global _global_ip_blocker
+    if _global_ip_blocker is None:
+        _global_ip_blocker = IPBlockerMiddleware()
+    return _global_ip_blocker
 
-# 설정 함수
+
 def configure_ip_blocker(
     redis_enabled: bool = False,
     redis_host: str = "localhost",
@@ -682,17 +680,21 @@ def configure_ip_blocker(
     failed_auth_threshold: int = 10,
     medium_threat_block_time: int = 3600
 ):
-    """IP 차단 설정 업데이트"""
-    global default_ip_blocker_config, ip_blocker_middleware
+    """IP 차단 시스템 설정"""
+    global _global_ip_blocker
     
-    default_ip_blocker_config.redis_enabled = redis_enabled
-    default_ip_blocker_config.redis_host = redis_host
-    default_ip_blocker_config.redis_port = redis_port
-    default_ip_blocker_config.suspicious_request_count = suspicious_request_count
-    default_ip_blocker_config.failed_auth_threshold = failed_auth_threshold
-    default_ip_blocker_config.medium_threat_block_time = medium_threat_block_time
+    config = IPBlockerConfig(
+        redis_enabled=redis_enabled and REDIS_AVAILABLE,
+        redis_host=redis_host,
+        redis_port=redis_port,
+        suspicious_request_count=suspicious_request_count,
+        failed_auth_threshold=failed_auth_threshold,
+        medium_threat_block_time=medium_threat_block_time
+    )
     
-    # 미들웨어 재생성
-    ip_blocker_middleware = IPBlockerMiddleware(default_ip_blocker_config)
+    _global_ip_blocker = IPBlockerMiddleware(config)
     
-    logger.info(f"✅ IP 차단 설정 업데이트 완료 (Redis: {'사용' if redis_enabled else '미사용'})") 
+    if redis_enabled and not REDIS_AVAILABLE:
+        logger.warning("⚠️ Redis를 활성화하려고 했지만 redis 패키지가 설치되지 않았습니다. 메모리 모드로 실행합니다.")
+    
+    logger.info(f"🛡️ IP 차단 시스템 설정 완료 (Redis: {'사용' if config.redis_enabled else '미사용'})") 
